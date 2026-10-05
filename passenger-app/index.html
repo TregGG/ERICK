@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Campus Rick - Passenger</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2E7D32">
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY_HERE&libraries=places"></script>
+</head>
+<body>
+
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="top-bar-content">
+            <button id="btn-menu" class="hamburger">☰</button>
+            <span class="app-title">Campus Rick</span>
+            <span id="ws-status-indicator" class="status-disconnected"></span>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map-container"></div>
+
+    <!-- Floating Action Buttons -->
+    <div class="fab-container">
+        <button id="btn-my-location" class="fab">📍</button>
+    </div>
+
+    <!-- Bottom Sheet -->
+    <div id="bottom-sheet" class="bottom-sheet half">
+        <div class="sheet-handle-container" id="sheet-handle">
+            <div class="sheet-handle"></div>
+        </div>
+        
+        <div class="sheet-content">
+            <!-- State: Idle (Request Form) -->
+            <div id="state-idle" class="sheet-state">
+                <h3 class="mb-4">Where to?</h3>
+                <div class="input-group">
+                    <label>Pickup Location</label>
+                    <input type="text" id="input-pickup" class="input-field" placeholder="Search or tap map">
+                </div>
+                <div class="input-group">
+                    <label>Dropoff Location</label>
+                    <input type="text" id="input-dropoff" class="input-field" placeholder="Search or tap map">
+                </div>
+                <button id="btn-request-ride" class="btn-primary">Request Rick (₹10)</button>
+            </div>
+
+            <!-- State: Requesting / Loading -->
+            <div id="state-loading" class="sheet-state hidden text-center">
+                <div class="loading-spinner"></div>
+                <h3 id="loading-text">Finding you a rick...</h3>
+            </div>
+
+            <!-- State: Queued -->
+            <div id="state-queued" class="sheet-state hidden text-center">
+                <h3 class="mb-4">You're in the queue</h3>
+                <div class="info-card">
+                    <span class="title">Current Position</span>
+                    <span id="queue-position" class="value">#1</span>
+                </div>
+                <p class="text-light mb-4">We'll notify you when matched.</p>
+                <button class="btn-danger btn-cancel-ride">Cancel Request</button>
+            </div>
+
+            <!-- State: Matched -->
+            <div id="state-matched" class="sheet-state hidden">
+                <h3 class="mb-4 text-center">Ride Matched!</h3>
+                <div class="info-card">
+                    <span class="title">Driver</span>
+                    <span id="driver-name" class="value">Loading...</span>
+                </div>
+                <div class="info-card">
+                    <span class="title">Vehicle Number</span>
+                    <span id="vehicle-number" class="value">Loading...</span>
+                </div>
+                <div class="info-card">
+                    <span class="title">Arrival Time</span>
+                    <span id="eta" class="value">ETA: ? min</span>
+                </div>
+                <button class="btn-danger btn-cancel-ride">Cancel Ride</button>
+            </div>
+
+            <!-- State: Pickup Enroute / Picked Up -->
+            <div id="state-enroute" class="sheet-state hidden text-center">
+                <h3 id="enroute-msg" class="mb-4">Driver is arriving...</h3>
+                <div class="info-card">
+                    <span class="title">Fixed Fare</span>
+                    <span class="value">₹10</span>
+                </div>
+            </div>
+
+            <!-- State: Completed -->
+            <div id="state-completed" class="sheet-state hidden text-center">
+                <h3 class="mb-4">Ride Complete!</h3>
+                <div class="info-card">
+                    <span class="title">Total Fare</span>
+                    <span class="value">₹10</span>
+                </div>
+                <button id="btn-pay" class="btn-primary">Pay via QR</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Modal Overlay -->
+    <div id="auth-modal" class="auth-overlay hidden">
+        <div class="auth-card">
+            
+            <!-- Login View -->
+            <div id="login-view">
+                <h2>Welcome Back</h2>
+                <form id="form-login">
+                    <div class="input-group">
+                        <label>Phone Number</label>
+                        <input type="tel" id="login-phone" class="input-field" placeholder="10-digit number" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Send OTP</button>
+                </form>
+                <div class="auth-links">
+                    New here? <a href="#" id="btn-show-register">Create an account</a>
+                </div>
+            </div>
+
+            <!-- Register View -->
+            <div id="register-view" class="hidden">
+                <h2>Create Account</h2>
+                <form id="form-register">
+                    <div class="input-group">
+                        <label>Full Name</label>
+                        <input type="text" id="reg-username" class="input-field" placeholder="John Doe" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Phone Number</label>
+                        <input type="tel" id="reg-phone" class="input-field" placeholder="10-digit number" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Register</button>
+                </form>
+                <div class="auth-links">
+                    Already have an account? <a href="#" id="btn-show-login">Login</a>
+                </div>
+            </div>
+
+            <!-- OTP View -->
+            <div id="otp-view" class="hidden">
+                <h2>Enter OTP</h2>
+                <p class="mb-4 text-center text-light">We've sent a code to your phone.</p>
+                <form id="form-otp">
+                    <div class="otp-container">
+                        <input type="text" maxlength="1" class="otp-input" pattern="\d" required>
+                        <input type="text" maxlength="1" class="otp-input" pattern="\d" required>
+                        <input type="text" maxlength="1" class="otp-input" pattern="\d" required>
+                        <input type="text" maxlength="1" class="otp-input" pattern="\d" required>
+                        <input type="text" maxlength="1" class="otp-input" pattern="\d" required>
+                        <input type="text" maxlength="1" class="otp-input" pattern="\d" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Verify & Login</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/websocket.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/ride.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

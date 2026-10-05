@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Campus Rick - Driver</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1565C0">
+</head>
+<body>
+  <!-- Auth Screen -->
+  <div id="auth-screen" class="screen active">
+    <div class="auth-container">
+      <h2>Driver Login</h2>
+      <div id="auth-phone-step">
+        <input type="tel" id="auth-phone" placeholder="Phone Number" />
+        <button id="auth-request-otp" class="btn btn-primary">Send OTP</button>
+      </div>
+      <div id="auth-otp-step" class="hidden">
+        <div class="otp-inputs">
+          <input type="text" maxlength="1" class="otp-box">
+          <input type="text" maxlength="1" class="otp-box">
+          <input type="text" maxlength="1" class="otp-box">
+          <input type="text" maxlength="1" class="otp-box">
+          <input type="text" maxlength="1" class="otp-box">
+          <input type="text" maxlength="1" class="otp-box">
+        </div>
+        <button id="auth-verify-otp" class="btn btn-primary">Verify OTP</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Setup Screen -->
+  <div id="setup-screen" class="screen">
+    <div class="setup-container">
+      <h2>Vehicle Setup</h2>
+      <input type="text" id="vehicle-number" placeholder="Vehicle Number (e.g. UP 14 AB 1234)" />
+      <button id="setup-submit" class="btn btn-primary">Register Vehicle</button>
+    </div>
+  </div>
+
+  <!-- Main Screen -->
+  <div id="main-screen" class="screen">
+    <div class="top-bar">
+      <div class="logo">Campus Rick Driver</div>
+      <div class="status-toggle">
+        <span id="status-text">Offline</span>
+        <label class="switch">
+          <input type="checkbox" id="online-toggle">
+          <span class="slider round"></span>
+        </label>
+      </div>
+      <button id="settings-btn" class="icon-btn">⚙️</button>
+    </div>
+
+    <div id="map-container"></div>
+    <div id="seat-counter" class="hidden">0/4 Seats</div>
+
+    <div id="bottom-panel" class="bottom-panel">
+      <div id="no-ride-state">
+        <p>Go online to start receiving requests</p>
+      </div>
+      <div id="active-ride-state" class="hidden">
+        <h3>Passengers</h3>
+        <div id="passenger-list"></div>
+      </div>
+    </div>
+
+    <!-- Request Popup -->
+    <div id="request-popup" class="popup hidden">
+      <div class="popup-content">
+        <h3>New Passenger Request</h3>
+        <p id="req-passenger-name"></p>
+        <p>Pickup: <span id="req-pickup"></span></p>
+        <p>Dropoff: <span id="req-dropoff"></span></p>
+        <p>Detour: <span id="req-detour"></span>m</p>
+        <div class="timer-bar"><div id="req-timer-fill"></div></div>
+        <div class="popup-actions">
+          <button id="req-reject" class="btn btn-danger">Reject</button>
+          <button id="req-accept" class="btn btn-success">Accept</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>Settings</h3>
+      <div class="setting-group">
+        <label for="detour-slider">Max Detour (meters): <span id="detour-val">500</span></label>
+        <input type="range" id="detour-slider" min="100" max="2000" step="100" value="500">
+      </div>
+      <button id="settings-close" class="btn btn-primary">Save & Close</button>
+      <button id="logout-btn" class="btn btn-danger" style="margin-top: 15px;">Logout</button>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/websocket.js"></script>
+  <script src="js/location.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/ride.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

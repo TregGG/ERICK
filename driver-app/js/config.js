@@ -1,0 +1,8 @@
+const CONFIG = {
+  API_BASE_URL: 'http://localhost:8000',
+  WS_BASE_URL: 'ws://localhost:8000',
+  GOOGLE_MAPS_API_KEY: 'YOUR_GOOGLE_MAPS_API_KEY',
+  CAMPUS_CENTER: { lat: 28.6139, lng: 77.2090 },
+  LOCATION_UPDATE_INTERVAL: 3000,
+  REQUEST_TIMEOUT: 30000 // 30s
+};
