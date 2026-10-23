@@ -9,12 +9,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error("Map initialization failed", e);
     }
 
-    // 2. Auth Check
+    // 2. Auth Check & Profile
     if (!authManager.isLoggedIn()) {
         authManager.showAuthScreen();
     } else {
         wsManager.connect(authManager.getToken());
+        checkUserProfile();
     }
+
+    async function checkUserProfile() {
+        const profile = await authManager.getProfile();
+        if (profile) {
+            const displayName = profile.name || profile.username;
+            const badge = document.getElementById('user-display-name');
+            if (badge) badge.textContent = `👤 ${displayName}`;
+
+            if (!profile.name || profile.name.startsWith('user_')) {
+                document.getElementById('profile-modal').classList.remove('hidden');
+                document.getElementById('profile-name').value = profile.name || '';
+            }
+        }
+    }
+
+    // Profile form listener
+    document.getElementById('form-profile')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('profile-name').value.trim();
+        if (name) {
+            const updated = await authManager.updateName(name);
+            if (updated) {
+                document.getElementById('profile-modal').classList.add('hidden');
+                const badge = document.getElementById('user-display-name');
+                if (badge) badge.textContent = `👤 ${updated.name}`;
+            }
+        }
+    });
+
+    document.getElementById('user-display-name')?.addEventListener('click', () => {
+        document.getElementById('profile-modal').classList.remove('hidden');
+    });
+
+    // Pin Picking Mode Controls
+    document.getElementById('btn-mode-pickup')?.addEventListener('click', () => mapManager.setMode('pickup'));
+    document.getElementById('btn-mode-dropoff')?.addEventListener('click', () => mapManager.setMode('dropoff'));
+    document.getElementById('btn-clear-pins')?.addEventListener('click', () => mapManager.clearMarkers());
 
     // 3. Bind WebSocket Events
     wsManager.onMessage('ride_matched', (data) => rideManager.updateState('matched', data));
@@ -22,6 +60,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     wsManager.onMessage('ride_status', (data) => rideManager.updateState(data.status));
     wsManager.onMessage('driver_location', (data) => {
         mapManager.updateDriverMarker(data.lat, data.lng, data.heading);
+        rideManager.handleDriverLocation(data);
+    });
+    wsManager.onMessage('route_updated', (data) => {
+        rideManager.handleRouteUpdated(data);
     });
 
     // 4. Setup Event Listeners
@@ -47,8 +89,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const phone = document.getElementById('reg-phone').value;
         const success = await authManager.register(username, phone);
         if (success) {
-            alert('Registration successful. Please login.');
-            document.getElementById('btn-show-login').click();
+            currentPhone = phone;
+            await authManager.requestOTP(currentPhone);
+            document.getElementById('register-view').classList.add('hidden');
+            document.getElementById('otp-view').classList.remove('hidden');
+            const firstInput = document.querySelector('.otp-input');
+            if (firstInput) firstInput.focus();
+        } else {
+            alert('Registration failed. Username or phone may already exist.');
         }
     });
 
@@ -59,6 +107,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (success) {
             document.getElementById('login-view').classList.add('hidden');
             document.getElementById('otp-view').classList.remove('hidden');
+            const firstInput = document.querySelector('.otp-input');
+            if (firstInput) firstInput.focus();
         } else {
             alert('Failed to request OTP');
         }
@@ -72,7 +122,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (otp.length === 6) {
             const success = await authManager.verifyOTP(currentPhone, otp);
-            if (!success) {
+            if (success) {
+                checkUserProfile();
+            } else {
                 alert('Invalid OTP');
             }
         }
@@ -102,20 +154,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const coords = await mapManager.getCurrentLocation();
             if (mapManager.map) {
-                mapManager.map.panTo(coords);
+                mapManager.map.panTo([coords.lat, coords.lng]);
             }
-            mapManager.setPickupMarker(coords.lat, coords.lng);
-            document.getElementById('input-pickup').value = "My Location";
+            mapManager.setPickupMarker(coords.lat, coords.lng, "My Location");
         } catch (e) {
             alert("Could not get location. Check permissions.");
         }
     });
 
     document.getElementById('btn-request-ride').addEventListener('click', () => {
-        let pLat = mapManager.pickupMarker ? mapManager.pickupMarker.getPosition().lat() : 28.6139;
-        let pLng = mapManager.pickupMarker ? mapManager.pickupMarker.getPosition().lng() : 77.2090;
-        let dLat = mapManager.dropoffMarker ? mapManager.dropoffMarker.getPosition().lat() : 28.6149;
-        let dLng = mapManager.dropoffMarker ? mapManager.dropoffMarker.getPosition().lng() : 77.2190;
+        if (!mapManager.pickupMarker || !mapManager.dropoffMarker) {
+            alert("Please select both Pickup (Start) and Dropoff (Stop) locations on the map!");
+            return;
+        }
+
+        let pLat = mapManager.pickupMarker.getLatLng().lat;
+        let pLng = mapManager.pickupMarker.getLatLng().lng;
+        let dLat = mapManager.dropoffMarker.getLatLng().lat;
+        let dLng = mapManager.dropoffMarker.getLatLng().lng;
 
         const pickup = { lat: pLat, lng: pLng, name: document.getElementById('input-pickup').value || 'Pickup' };
         const dropoff = { lat: dLat, lng: dLng, name: document.getElementById('input-dropoff').value || 'Dropoff' };

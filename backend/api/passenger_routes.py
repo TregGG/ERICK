@@ -44,7 +44,25 @@ async def get_ride_status(request_id: str, user: Dict[str, Any] = Depends(get_cu
     if not ride_req:
         raise HTTPException(status_code=404, detail="Ride request not found")
     
-    return {"status": ride_req.status, "matched_ride_id": str(ride_req.matched_ride_id) if ride_req.matched_ride_id else None}
+    response = {
+        "status": ride_req.status,
+        "matched_ride_id": str(ride_req.matched_ride_id) if ride_req.matched_ride_id else None
+    }
+
+    if ride_req.matched_ride_id:
+        from ..models.ride import Ride
+        from ..models.rickshaw import Rickshaw
+        from ..models.user import User
+
+        ride = await db.get(Ride, ride_req.matched_ride_id)
+        if ride:
+            rick = await db.get(Rickshaw, ride.rickshaw_id)
+            if rick:
+                driver = await db.get(User, rick.driver_id)
+                response["vehicle_number"] = rick.vehicle_number
+                response["driver_name"] = (driver.name or driver.username or "Driver") if driver else "Driver"
+
+    return response
 
 @router.post("/cancel/{request_id}")
 async def cancel_ride(request_id: str, user: Dict[str, Any] = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
@@ -53,10 +71,33 @@ async def cancel_ride(request_id: str, user: Dict[str, Any] = Depends(get_curren
     if not ride_req:
         raise HTTPException(status_code=404, detail="Ride request not found")
     
-    if ride_req.status not in ["pending", "queued"]:
+    if ride_req.status not in ["pending", "queued", "matched"]:
         raise HTTPException(status_code=400, detail="Cannot cancel in current state")
         
+    old_ride_id = ride_req.matched_ride_id
     ride_req.status = "cancelled"
+    
+    if old_ride_id:
+        from ..models.ride import Ride, RidePassenger
+        from ..models.rickshaw import Rickshaw
+        from ..websocket.manager import manager
+        
+        # Remove passenger from ride
+        rp_res = await db.execute(select(RidePassenger).filter(RidePassenger.request_id == ride_req.id))
+        rp = rp_res.scalars().first()
+        if rp:
+            await db.delete(rp)
+            
+        ride = await db.get(Ride, old_ride_id)
+        if ride:
+            rick = await db.get(Rickshaw, ride.rickshaw_id)
+            if rick:
+                rick.current_passenger_count = max(0, rick.current_passenger_count - 1)
+                await manager.send_to_user(
+                    str(rick.driver_id),
+                    {"type": "passenger_cancelled", "data": {"request_id": str(ride_req.id)}}
+                )
+
     await db.commit()
     return {"message": "Ride cancelled successfully"}
 

@@ -71,9 +71,17 @@ class AuthManager {
             const response = await fetch(`${CONFIG.API_BASE_URL}/api/auth/request-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone })
+                body: JSON.stringify({ phone, role: 'passenger' })
             });
-            return response.ok;
+            if (response.ok) {
+                const data = await response.json();
+                if (data.debug_otp) {
+                    alert(`OTP is: ${data.debug_otp}`);
+                    console.log('OTP:', data.debug_otp);
+                }
+                return true;
+            }
+            return false;
         } catch (error) {
             console.error('OTP request failed', error);
             return false;
@@ -91,19 +99,66 @@ class AuthManager {
             const response = await fetch(`${CONFIG.API_BASE_URL}/api/auth/verify-otp`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone, otp })
+                body: JSON.stringify({ phone, otp, role: 'passenger' })
             });
             if (response.ok) {
                 const data = await response.json();
-                localStorage.setItem(this.tokenKey, data.token);
+                const token = data.token || data.access_token;
+                localStorage.setItem(this.tokenKey, token);
                 document.getElementById('auth-modal').classList.add('hidden');
-                wsManager.connect(data.token);
+                wsManager.connect(token);
                 return true;
             }
             return false;
         } catch (error) {
             console.error('OTP verification failed', error);
             return false;
+        }
+    }
+
+    /**
+     * Gets the current user profile
+     */
+    async getProfile() {
+        const token = this.getToken();
+        if (!token) return null;
+        try {
+            const res = await fetch(`${CONFIG.API_BASE_URL}/api/auth/me`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                return await res.json();
+            }
+            return null;
+        } catch (e) {
+            console.error('Failed to get profile', e);
+            return null;
+        }
+    }
+
+    /**
+     * Updates user name
+     * @param {string} name 
+     */
+    async updateName(name) {
+        const token = this.getToken();
+        if (!token) return null;
+        try {
+            const res = await fetch(`${CONFIG.API_BASE_URL}/api/auth/profile`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ name })
+            });
+            if (res.ok) {
+                return await res.json();
+            }
+            return null;
+        } catch (e) {
+            console.error('Failed to update name', e);
+            return null;
         }
     }
 }

@@ -3,6 +3,7 @@ uvicorn[standard]
 sqlalchemy[asyncio]
 asyncpg
 geoalchemy2
+shapely
 alembic
 python-jose[cryptography]
 passlib

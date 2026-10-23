@@ -1,34 +1,22 @@
-const CACHE_NAME = 'rick-driver-v1';
-const ASSETS = [
-  '/',
-  '/index.html',
-  '/css/style.css',
-  '/js/config.js',
-  '/js/auth.js',
-  '/js/websocket.js',
-  '/js/location.js',
-  '/js/map.js',
-  '/js/ride.js',
-  '/js/app.js',
-  '/manifest.json'
-];
+const CACHE_NAME = 'rick-driver-v3';
 
 self.addEventListener('install', (e) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => caches.delete(key))
+      );
+    }).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (e) => {
-  if (e.request.url.includes('/api/')) {
-    // Network first for API
-    e.respondWith(
-      fetch(e.request).catch(() => caches.match(e.request))
-    );
-  } else {
-    // Cache first for static
-    e.respondWith(
-      caches.match(e.request).then((response) => response || fetch(e.request))
-    );
-  }
+  // Always network-first in development so file updates apply immediately
+  e.respondWith(
+    fetch(e.request).catch(() => caches.match(e.request))
+  );
 });

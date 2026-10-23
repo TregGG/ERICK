@@ -52,13 +52,8 @@ class WSClient {
         rideManager.getActiveRide(); // Refresh state
         break;
       case 'route_updated':
-        if (msg.data.route_polyline) {
-          // Note: In a real app, decode polyline using google.maps.geometry.encoding.decodePath
-          // mapManager.showRoute(path);
-        }
-        if (msg.data.stops) {
-          mapManager.showStops(msg.data.stops);
-          mapManager.fitBounds();
+        if (typeof rideManager !== 'undefined' && rideManager.handleRouteUpdated) {
+          rideManager.handleRouteUpdated(msg.data);
         }
         break;
     }

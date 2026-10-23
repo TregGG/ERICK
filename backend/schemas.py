@@ -10,14 +10,28 @@ class RegisterRequest(BaseModel):
 
 class PhoneRequest(BaseModel):
     phone: str
+    role: Optional[str] = "passenger"
 
 class VerifyOTPRequest(BaseModel):
     phone: str
     otp: str
+    role: Optional[str] = "passenger"
 
 class TokenResponse(BaseModel):
     access_token: str
+    token: Optional[str] = None
     token_type: str = "bearer"
+
+class ProfileUpdate(BaseModel):
+    name: str
+
+class UserProfile(BaseModel):
+    id: UUID
+    username: str
+    name: Optional[str] = None
+    phone: str
+    role: str
+    is_verified: bool
 
 class RideRequestCreate(BaseModel):
     pickup_lat: float

@@ -331,3 +331,124 @@ body, html {
 .mt-4 { margin-top: 16px; }
 .mb-4 { margin-bottom: 16px; }
 .text-light { color: var(--text-light); }
+
+/* User Badge */
+.user-badge {
+    background: #E8F5E9;
+    color: var(--primary-color);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+/* Sheet Header & Fare Badge */
+.sheet-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.fare-badge {
+    background: #E8F5E9;
+    color: #2E7D32;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+
+/* Pin Picking Controls */
+.pin-hint {
+    background: #FFF8E1;
+    color: #F57F17;
+    font-size: 13px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.pin-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.btn-sm {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #E0E0E0;
+    background: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-pickup.active {
+    background: #2E7D32;
+    color: white;
+    border-color: #2E7D32;
+}
+
+.btn-dropoff.active {
+    background: #D32F2F;
+    color: white;
+    border-color: #D32F2F;
+}
+
+.btn-outline {
+    background: transparent;
+    color: #616161;
+}
+
+/* Campus Landmark Chips */
+.chips-container {
+    margin: 12px 0;
+}
+
+.chips-title {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-light);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+
+.landmark-chips {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+}
+
+.landmark-chips .chip {
+    background: #F1F5F9;
+    color: #334155;
+    border: 1px solid #CBD5E1;
+    border-radius: 16px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.landmark-chips .chip:hover {
+    background: #E2E8F0;
+    border-color: #94A3B8;
+}
+
+/* Leaflet Container Fixes */
+.leaflet-container {
+    width: 100%;
+    height: 100%;
+}

@@ -8,8 +8,9 @@
     <meta name="theme-color" content="#2E7D32">
     <link rel="stylesheet" href="css/style.css">
     
-    <!-- Google Maps API -->
-    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY_HERE&libraries=places"></script>
+    <!-- Leaflet Map CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 <body>
 
@@ -18,6 +19,7 @@
         <div class="top-bar-content">
             <button id="btn-menu" class="hamburger">☰</button>
             <span class="app-title">Campus Rick</span>
+            <span id="user-display-name" class="user-badge"></span>
             <span id="ws-status-indicator" class="status-disconnected"></span>
         </div>
     </div>
@@ -27,7 +29,7 @@
 
     <!-- Floating Action Buttons -->
     <div class="fab-container">
-        <button id="btn-my-location" class="fab">📍</button>
+        <button id="btn-my-location" class="fab" title="My Location">📍</button>
     </div>
 
     <!-- Bottom Sheet -->
@@ -39,16 +41,33 @@
         <div class="sheet-content">
             <!-- State: Idle (Request Form) -->
             <div id="state-idle" class="sheet-state">
-                <h3 class="mb-4">Where to?</h3>
+                <div class="sheet-header-row">
+                    <h3>Where to?</h3>
+                    <span class="fare-badge">Fixed ₹10</span>
+                </div>
+                
+                <div class="pin-hint" id="pin-instruction">👉 Tap map to set <b>Start (Pickup)</b></div>
+                <div class="pin-actions">
+                    <button type="button" id="btn-mode-pickup" class="btn-sm btn-pickup active">🟢 Set Start</button>
+                    <button type="button" id="btn-mode-dropoff" class="btn-sm btn-dropoff">🔴 Set Stop</button>
+                    <button type="button" id="btn-clear-pins" class="btn-sm btn-outline">✕ Clear</button>
+                </div>
+
                 <div class="input-group">
-                    <label>Pickup Location</label>
-                    <input type="text" id="input-pickup" class="input-field" placeholder="Search or tap map">
+                    <label>Pickup Location (Start)</label>
+                    <input type="text" id="input-pickup" class="input-field" placeholder="Tap map or pick landmark below" readonly>
                 </div>
                 <div class="input-group">
-                    <label>Dropoff Location</label>
-                    <input type="text" id="input-dropoff" class="input-field" placeholder="Search or tap map">
+                    <label>Dropoff Location (Stop)</label>
+                    <input type="text" id="input-dropoff" class="input-field" placeholder="Tap map or pick landmark below" readonly>
                 </div>
-                <button id="btn-request-ride" class="btn-primary">Request Rick (₹10)</button>
+
+                <div class="chips-container">
+                    <span class="chips-title">Campus Landmarks:</span>
+                    <div id="landmark-chips" class="landmark-chips"></div>
+                </div>
+
+                <button id="btn-request-ride" class="btn-primary" style="margin-top: 15px;">Request Rick (₹10)</button>
             </div>
 
             <!-- State: Requesting / Loading -->
@@ -162,6 +181,21 @@
                 </form>
             </div>
 
+        </div>
+    </div>
+
+    <!-- Profile Modal Overlay -->
+    <div id="profile-modal" class="auth-overlay hidden">
+        <div class="auth-card">
+            <h2>Set Up Profile</h2>
+            <p class="mb-4 text-center text-light">Enter your name so the driver can identify you.</p>
+            <form id="form-profile">
+                <div class="input-group">
+                    <label>Your Name</label>
+                    <input type="text" id="profile-name" class="input-field" placeholder="e.g. Rahul Sharma" required>
+                </div>
+                <button type="submit" class="btn-primary">Save Profile</button>
+            </form>
         </div>
     </div>
 

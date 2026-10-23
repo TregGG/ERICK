@@ -5,7 +5,11 @@ class LocationTracker {
   }
 
   startTracking() {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      mapManager.updatePosition(CONFIG.CAMPUS_CENTER.lat, CONFIG.CAMPUS_CENTER.lng);
+      wsClient.sendLocation(CONFIG.CAMPUS_CENTER.lat, CONFIG.CAMPUS_CENTER.lng, 0);
+      return;
+    }
     
     this.stopTracking(); // Ensure no duplicates
     
@@ -22,7 +26,11 @@ class LocationTracker {
         this.lastPos = { lat, lng };
       },
       (error) => {
-        console.error('Location error:', error);
+        console.warn('Geolocation unavailable/denied, defaulting to campus center:', error.message);
+        if (!this.lastPos) {
+          mapManager.updatePosition(CONFIG.CAMPUS_CENTER.lat, CONFIG.CAMPUS_CENTER.lng);
+          wsClient.sendLocation(CONFIG.CAMPUS_CENTER.lat, CONFIG.CAMPUS_CENTER.lng, 0);
+        }
       },
       {
         enableHighAccuracy: true,

@@ -1,35 +1,22 @@
-const CACHE_NAME = 'campus-rick-passenger-v1';
-const ASSETS = [
-    '/',
-    '/index.html',
-    '/css/style.css',
-    '/js/config.js',
-    '/js/auth.js',
-    '/js/map.js',
-    '/js/ride.js',
-    '/js/websocket.js',
-    '/js/app.js',
-    '/manifest.json'
-];
+const CACHE_NAME = 'rick-passenger-v2';
 
-self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-    );
+self.addEventListener('install', (e) => {
+  self.skipWaiting();
 });
 
-self.addEventListener('fetch', (event) => {
-    if (event.request.url.includes('/api/')) {
-        // Network-first for API calls
-        event.respondWith(
-            fetch(event.request).catch(() => caches.match(event.request))
-        );
-    } else {
-        // Cache-first for static assets
-        event.respondWith(
-            caches.match(event.request).then((cachedResponse) => {
-                return cachedResponse || fetch(event.request);
-            })
-        );
-    }
+self.addEventListener('activate', (e) => {
+  e.waitUntil(
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => caches.delete(key))
+      );
+    }).then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (e) => {
+  // Always network-first in development so file updates apply immediately
+  e.respondWith(
+    fetch(e.request).catch(() => caches.match(e.request))
+  );
 });

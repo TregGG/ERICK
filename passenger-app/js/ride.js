@@ -147,10 +147,46 @@ class RideManager {
         }
     }
 
+    handleDriverLocation(data) {
+        if (!data || data.lat === undefined || data.lng === undefined) return;
+        this.driverPos = { lat: data.lat, lng: data.lng };
+
+        if (this.state === 'matched' || this.state === 'pickup_enroute') {
+            if (this.pickup) {
+                const min = mapManager.calculateETA(this.driverPos, this.pickup);
+                const etaEl = document.getElementById('eta');
+                if (etaEl) etaEl.innerText = `ETA: ~${min} min (live)`;
+                mapManager.drawRoute(this.driverPos, this.pickup);
+            }
+        } else if (this.state === 'picked_up') {
+            if (this.dropoff) {
+                const min = mapManager.calculateETA(this.driverPos, this.dropoff);
+                const msgEl = document.getElementById('enroute-msg');
+                if (msgEl) msgEl.innerText = `On your way! ~${min} min to destination`;
+                mapManager.drawRoute(this.driverPos, this.dropoff);
+            }
+        }
+    }
+
+    handleRouteUpdated(data) {
+        if (!data) return;
+        if (data.route_polyline && data.route_polyline.length > 0) {
+            mapManager.setRoadPolyline(data.route_polyline);
+        }
+        if (data.duration_seconds) {
+            const min = Math.max(1, Math.round(data.duration_seconds / 60));
+            const etaEl = document.getElementById('eta');
+            if (etaEl && (this.state === 'matched' || this.state === 'pickup_enroute')) {
+                etaEl.innerText = `ETA: ~${min} min (live)`;
+            }
+        }
+    }
+
     resetRide() {
         this.currentRideId = null;
         this.pickup = null;
         this.dropoff = null;
+        this.driverPos = null;
         this.updateState('idle');
     }
 }

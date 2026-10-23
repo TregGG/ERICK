@@ -7,7 +7,7 @@ from ..database import Base
 class Rickshaw(Base):
     __tablename__ = "rickshaws"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"), default=uuid.uuid4)
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"), default=uuid.uuid4)
     driver_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     vehicle_number = Column(String(20), unique=True, nullable=False)
     capacity = Column(Integer, default=4)
