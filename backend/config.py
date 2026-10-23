@@ -10,9 +10,9 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
     GOOGLE_MAPS_API_KEY: str = ""
     JWT_SECRET: str = "super_secret_default_key_change_me_in_prod"
-    JWT_EXPIRY_HOURS: int = 24
+    JWT_EXPIRY_HOURS: int = 8760
     OTP_EXPIRY_SECONDS: int = 300
-    DEFAULT_MAX_DETOUR_METERS: int = 500
+    DEFAULT_MAX_DETOUR_METERS: int = 1500
     CAMPUS_CENTER_LAT: float = 0.0
     CAMPUS_CENTER_LNG: float = 0.0
     CAMPUS_RADIUS_METERS: int = 2000

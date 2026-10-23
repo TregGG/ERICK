@@ -18,15 +18,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function checkDriverProfile() {
     const profile = await auth.getProfile();
+    if (!profile) {
+      auth.logout();
+      showScreen('auth-screen');
+      return;
+    }
     const rickshawData = await auth.getMyRickshaw();
 
     const hasName = profile && profile.name && !profile.name.startsWith('user_') && !profile.name.startsWith('driver_');
     const hasVehicle = rickshawData && rickshawData.registered;
 
-    if (profile) {
-      const nameEl = document.getElementById('driver-display-name');
-      if (nameEl) nameEl.textContent = profile.name || profile.username;
-    }
+    const nameEl = document.getElementById('driver-display-name');
+    if (nameEl) nameEl.textContent = profile.name || profile.username;
 
     if (!hasName || !hasVehicle) {
       showScreen('setup-screen');
@@ -94,6 +97,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    if (!auth.isAuthenticated()) {
+      alert('Session expired. Please log in again.');
+      showScreen('auth-screen');
+      return;
+    }
+
     const nameOk = await auth.updateName(name);
     const vehicleOk = await auth.registerVehicle(vNum);
 
@@ -101,8 +110,17 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.setItem('vehicle_registered', 'true');
       await checkDriverProfile();
     } else {
-      alert('Error saving profile or vehicle. Please try again.');
+      if (!auth.isAuthenticated()) {
+        alert('Session expired. Please log in again.');
+        showScreen('auth-screen');
+      } else {
+        alert('Error saving profile or vehicle. Please try again.');
+      }
     }
+  });
+
+  document.getElementById('setup-logout')?.addEventListener('click', () => {
+    auth.logout();
   });
 
   // Initialize Main Screen

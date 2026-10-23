@@ -15,4 +15,4 @@ class Rickshaw(Base):
     current_location = Column(Geometry('POINT', srid=4326))
     heading = Column(Float)
     current_passenger_count = Column(Integer, default=0)
-    max_detour_meters = Column(Integer, default=500)
+    max_detour_meters = Column(Integer, default=1500)

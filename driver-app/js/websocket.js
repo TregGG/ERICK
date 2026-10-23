@@ -23,8 +23,13 @@ class WSClient {
       }
     };
     
-    this.ws.onclose = () => {
+    this.ws.onclose = (event) => {
       console.log('WS Disconnected');
+      if (event && (event.code === 1008 || event.code === 4401 || event.code === 4403)) {
+        console.warn('WS Auth failed. Logging out driver.');
+        auth.logout();
+        return;
+      }
       this.reconnect();
     };
   }

@@ -3,8 +3,29 @@ class Auth {
     this.token = localStorage.getItem('driver_token');
   }
   
+  isTokenExpired() {
+    if (!this.token) return true;
+    try {
+      const parts = this.token.split('.');
+      if (parts.length !== 3) return true;
+      const payload = JSON.parse(atob(parts[1]));
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return true;
+    }
+  }
+
   isAuthenticated() {
-    return !!this.token;
+    if (!this.token) return false;
+    if (this.isTokenExpired()) {
+      this.token = null;
+      localStorage.removeItem('driver_token');
+      return false;
+    }
+    return true;
   }
 
   async requestOTP(phone) {
@@ -59,6 +80,11 @@ class Auth {
         },
         body: JSON.stringify({ vehicle_number: vehicleNumber })
       });
+      if (res.status === 401) {
+        this.token = null;
+        localStorage.removeItem('driver_token');
+        return false;
+      }
       return res.ok;
     } catch (e) {
       console.error(e);
@@ -72,6 +98,11 @@ class Auth {
       const res = await fetch(`${CONFIG.API_BASE_URL}/api/driver/my-rickshaw`, {
         headers: { 'Authorization': `Bearer ${this.token}` }
       });
+      if (res.status === 401) {
+        this.token = null;
+        localStorage.removeItem('driver_token');
+        return null;
+      }
       if (res.ok) {
         return await res.json();
       }
@@ -88,6 +119,11 @@ class Auth {
       const res = await fetch(`${CONFIG.API_BASE_URL}/api/auth/me`, {
         headers: { 'Authorization': `Bearer ${this.token}` }
       });
+      if (res.status === 401) {
+        this.token = null;
+        localStorage.removeItem('driver_token');
+        return null;
+      }
       if (res.ok) {
         return await res.json();
       }
@@ -109,6 +145,11 @@ class Auth {
         },
         body: JSON.stringify({ name })
       });
+      if (res.status === 401) {
+        this.token = null;
+        localStorage.removeItem('driver_token');
+        return null;
+      }
       if (res.ok) {
         return await res.json();
       }

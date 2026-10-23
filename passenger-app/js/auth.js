@@ -15,11 +15,36 @@ class AuthManager {
     }
 
     /**
+     * Checks if the stored JWT is expired
+     * @returns {boolean} True if expired or missing
+     */
+    isTokenExpired() {
+        const token = this.getToken();
+        if (!token) return true;
+        try {
+            const parts = token.split('.');
+            if (parts.length !== 3) return true;
+            const payload = JSON.parse(atob(parts[1]));
+            if (payload.exp && payload.exp * 1000 < Date.now()) {
+                return true;
+            }
+            return false;
+        } catch (e) {
+            return true;
+        }
+    }
+
+    /**
      * Checks if the user is logged in
      * @returns {boolean} True if logged in
      */
     isLoggedIn() {
-        return !!this.getToken();
+        if (!this.getToken()) return false;
+        if (this.isTokenExpired()) {
+            this.logout();
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -27,8 +52,9 @@ class AuthManager {
      */
     logout() {
         localStorage.removeItem(this.tokenKey);
-        wsManager.disconnect();
-        window.location.reload();
+        if (typeof wsManager !== 'undefined' && wsManager.disconnect) {
+            wsManager.disconnect();
+        }
     }
 
     /**
@@ -126,6 +152,10 @@ class AuthManager {
             const res = await fetch(`${CONFIG.API_BASE_URL}/api/auth/me`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
+            if (res.status === 401) {
+                this.logout();
+                return null;
+            }
             if (res.ok) {
                 return await res.json();
             }
@@ -152,6 +182,10 @@ class AuthManager {
                 },
                 body: JSON.stringify({ name })
             });
+            if (res.status === 401) {
+                this.logout();
+                return null;
+            }
             if (res.ok) {
                 return await res.json();
             }

@@ -17,7 +17,7 @@ def create_token(user_id: str, role: str) -> str:
 
 def verify_token(token: str) -> Dict[str, Any]:
     try:
-        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[ALGORITHM], options={"verify_exp": False})
         user_id: str = payload.get("sub")
         role: str = payload.get("role")
         if user_id is None or role is None:

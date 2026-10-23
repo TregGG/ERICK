@@ -19,15 +19,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function checkUserProfile() {
         const profile = await authManager.getProfile();
-        if (profile) {
-            const displayName = profile.name || profile.username;
-            const badge = document.getElementById('user-display-name');
-            if (badge) badge.textContent = `👤 ${displayName}`;
+        if (!profile) {
+            authManager.showAuthScreen();
+            return;
+        }
+        const displayName = profile.name || profile.username;
+        const badge = document.getElementById('user-display-name');
+        if (badge) badge.textContent = `👤 ${displayName}`;
 
-            if (!profile.name || profile.name.startsWith('user_')) {
-                document.getElementById('profile-modal').classList.remove('hidden');
-                document.getElementById('profile-name').value = profile.name || '';
-            }
+        if (!profile.name || profile.name.startsWith('user_')) {
+            document.getElementById('profile-modal').classList.remove('hidden');
+            document.getElementById('profile-name').value = profile.name || '';
         }
     }
 

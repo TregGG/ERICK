@@ -8,6 +8,7 @@ from ..models.ride import Ride, RideRequest, RidePassenger
 from ..models.rickshaw import Rickshaw
 from ..models.user import User
 from ..websocket.manager import manager
+from ..config import settings
 from .routing import sequence_stops, update_ride_route
 
 def haversine_distance_meters(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -238,7 +239,7 @@ async def find_matching_rick(
             )
 
         # Check driver detour tolerance
-        max_tolerance = rick.max_detour_meters or 500
+        max_tolerance = rick.max_detour_meters or settings.DEFAULT_MAX_DETOUR_METERS
         if detour_meters > max_tolerance:
             # Exceeds driver tolerance -> disqualify candidate
             continue

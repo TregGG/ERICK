@@ -36,9 +36,15 @@ class WebSocketManager {
                 }
             };
 
-            this.socket.onclose = () => {
+            this.socket.onclose = (event) => {
                 console.log('WebSocket disconnected');
                 this._updateStatusIndicator(false);
+                if (event && (event.code === 1008 || event.code === 4401 || event.code === 4403)) {
+                    console.warn('WS Auth failed. Logging out passenger.');
+                    authManager.logout();
+                    authManager.showAuthScreen();
+                    return;
+                }
                 this._scheduleReconnect();
             };
 
