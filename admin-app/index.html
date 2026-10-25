@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Campus Rick Admin · IIT Roorkee</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/shared/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <script src="/shared/js/theme-init.js"></script>
+  <link rel="stylesheet" href="/shared/css/base.css">
+  <link rel="stylesheet" href="css/admin.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <div class="admin" id="admin" hidden>
+    <header class="admin-head">
+      <div class="brand" style="box-shadow:none"><span class="brand-mark" aria-hidden="true">&#x1F6FA;</span><span>Campus Rick Admin<small>IIT Roorkee transport office</small></span></div>
+      <span class="spacer"></span>
+      <span class="small muted" id="who"></span>
+      <span id="theme-slot"></span>
+      <button class="btn btn-outline btn-sm" id="logout-btn">Sign out</button>
+    </header>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" data-tab="overview">Overview</button>
+      <button role="tab" data-tab="rides">Rides</button>
+      <button role="tab" data-tab="drivers">Drivers</button>
+      <button role="tab" data-tab="users">Accounts</button>
+      <button role="tab" data-tab="campus">Campus</button>
+      <button role="tab" data-tab="settings">Fares &amp; dispatch</button>
+      <button role="tab" data-tab="reports">Reports</button>
+      <button role="tab" data-tab="audit">Audit log</button>
+    </nav>
+    <main id="view" class="admin-main" tabindex="-1"></main>
+  </div>
+</body>
+</html>

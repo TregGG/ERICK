@@ -2,207 +2,42 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Campus Rick - Driver</title>
-  <link rel="stylesheet" href="css/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Campus Rick Driver · IIT Roorkee</title>
+  <meta name="theme-color" content="#1565c0">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1565C0">
-  <!-- Leaflet Map CSS & JS FIRST -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="icon" href="/shared/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <script src="/shared/js/theme-init.js"></script>
+  <link rel="stylesheet" href="/shared/css/base.css">
+  <link rel="stylesheet" href="css/driver.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <!-- Driver App CSS with cache buster -->
-  <link rel="stylesheet" href="css/style.css?v=20261013_5">
-  <style>
-    /* Absolute top-priority layers over Leaflet map */
-    #map-container {
-      position: relative !important;
-      z-index: 1 !important;
-    }
-    .leaflet-container {
-      z-index: 1 !important;
-    }
-    #seat-counter {
-      position: fixed !important;
-      top: 72px !important;
-      right: 12px !important;
-      z-index: 99990 !important;
-      background: #ffffff !important;
-      border: 2px solid #1565C0 !important;
-      color: #1565C0 !important;
-      padding: 8px 16px !important;
-      border-radius: 20px !important;
-      font-weight: bold !important;
-      font-size: 15px !important;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.3) !important;
-      pointer-events: auto !important;
-    }
-    #request-popup, .popup {
-      position: fixed !important;
-      top: 75px !important;
-      left: 14px !important;
-      right: 14px !important;
-      max-width: 440px !important;
-      margin: 0 auto !important;
-      z-index: 99999 !important;
-      pointer-events: auto !important;
-    }
-    .popup-content {
-      background: #ffffff !important;
-      padding: 20px !important;
-      border-radius: 14px !important;
-      box-shadow: 0 12px 35px rgba(0,0,0,0.5) !important;
-      border: 3px solid #1565C0 !important;
-    }
-    .top-bar {
-      z-index: 9000 !important;
-      position: relative !important;
-    }
-    .bottom-panel {
-      z-index: 9000 !important;
-      position: relative !important;
-    }
-    .modal {
-      z-index: 100000 !important;
-    }
-  </style>
+  <script type="module" src="js/app.js"></script>
 </head>
 <body>
-  <!-- Auth Screen -->
-  <div id="auth-screen" class="screen active">
-    <div class="auth-container">
-      <h2>Driver Login</h2>
-      <div id="auth-phone-step">
-        <input type="tel" id="auth-phone" placeholder="Phone Number" />
-        <button id="auth-request-otp" class="btn btn-primary">Send OTP</button>
-      </div>
-      <div id="auth-otp-step" class="hidden">
-        <div class="otp-inputs">
-          <input type="text" maxlength="1" class="otp-box">
-          <input type="text" maxlength="1" class="otp-box">
-          <input type="text" maxlength="1" class="otp-box">
-          <input type="text" maxlength="1" class="otp-box">
-          <input type="text" maxlength="1" class="otp-box">
-          <input type="text" maxlength="1" class="otp-box">
-        </div>
-        <button id="auth-verify-otp" class="btn btn-primary">Verify OTP</button>
-      </div>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">&#x1F6FA;</span><span>Rick Driver<small>IIT Roorkee</small></span></div>
+      <span class="spacer"></span>
+      <span id="duty" class="pill" hidden></span>
+      <span id="theme-slot"></span>
+      <span id="conn" class="pill" role="status"></span>
+      <button id="menu-btn" class="pill" aria-label="Open menu" hidden>&#9776;</button>
+    </header>
+    <div id="sim-banner" class="map-notice banner banner-sim" hidden role="status">
+      <strong>SIMULATED LOCATION</strong>&nbsp;&mdash; test mode, not real GPS
     </div>
+    <div id="map" role="region" aria-label="Campus map"></div>
+    <div id="map-notice" class="map-notice" hidden></div>
+    <div class="map-fabs" id="fabs">
+      <button class="fab" id="center-btn" aria-label="Centre on my position" title="Centre on my position">&#x1F3AF;</button>
+    </div>
+    <section id="sheet" class="sheet" aria-live="polite">
+      <button class="sheet-handle" id="sheet-handle" aria-label="Expand or collapse panel"><span></span></button>
+      <div class="sheet-body" id="sheet-body">
+        <div class="stack"><div class="skeleton" style="height:22px;width:60%"></div><div class="skeleton" style="height:56px"></div></div>
+      </div>
+    </section>
   </div>
-
-  <!-- Setup Screen -->
-  <div id="setup-screen" class="screen">
-    <div class="setup-container">
-      <h2>Driver Profile Setup</h2>
-      <p style="color: #64748b; margin-bottom: 15px; font-size: 14px; text-align: center;">Enter your details to start accepting campus rides.</p>
-      
-      <label style="font-weight:600; font-size:13px; color:#334155; display:block; margin-bottom:4px;">Full Name</label>
-      <input type="text" id="driver-name-input" placeholder="e.g. Ramesh Kumar" required />
-
-      <label style="font-weight:600; font-size:13px; color:#334155; display:block; margin-bottom:4px;">Rickshaw Vehicle Number</label>
-      <input type="text" id="vehicle-number" placeholder="e.g. UP 14 AB 1234" required />
-
-      <button id="setup-submit" class="btn btn-primary" style="margin-top: 10px;">Save & Start Driving</button>
-      <button id="setup-logout" class="btn" style="margin-top: 8px; background: transparent; color: #64748b; font-size: 13px; border: none; cursor: pointer;">Use different phone number / Log out</button>
-    </div>
-  </div>
-
-  <!-- Main Screen -->
-  <div id="main-screen" class="screen">
-    <div class="top-bar">
-      <div class="logo">🛺 <span id="driver-display-name">Rick Driver</span></div>
-      <div class="status-toggle">
-        <span id="status-text">Offline</span>
-        <label class="switch">
-          <input type="checkbox" id="online-toggle">
-          <span class="slider round"></span>
-        </label>
-      </div>
-      <button id="settings-btn" class="icon-btn">⚙️</button>
-    </div>
-
-    <div id="map-container"></div>
-
-    <!-- Prominent Next Stop Action Banner floating right above bottom panel -->
-    <div id="next-stop-banner" class="next-stop-banner hidden">
-      <div class="next-stop-icon" id="next-stop-icon">🟢</div>
-      <div class="next-stop-info">
-        <div class="next-stop-target" id="next-stop-target">Next: Stop 1</div>
-        <div class="next-stop-location" id="next-stop-location">Main Gate</div>
-      </div>
-      <div style="display:flex; gap:6px; align-items:center;">
-        <button id="btn-drive-step" class="btn btn-sm" style="background:#f8fafc; color:#1e293b; border:1px solid #cbd5e1; font-size:12px; font-weight:600; padding:6px 10px; cursor:pointer;" title="Simulate driving closer to next stop">🚗 Drive</button>
-        <button id="next-stop-action-btn" class="btn btn-sm btn-next-action">Pick Up</button>
-      </div>
-    </div>
-
-    <div id="bottom-panel" class="bottom-panel">
-      <div id="no-ride-state">
-        <p>Go online to start receiving requests</p>
-      </div>
-      <div id="active-ride-state" class="hidden">
-        <div class="panel-header-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <h3 style="font-size:16px; color:#1e293b; margin:0;">Route Sequence</h3>
-          <span id="route-distance-badge" class="route-badge" style="font-size:12px; background:#e2e8f0; color:#334155; padding:3px 8px; border-radius:12px; font-weight:600;"></span>
-        </div>
-        <!-- Ordered stops timeline -->
-        <div id="stops-timeline" class="stops-timeline"></div>
-
-        <h4 style="margin: 14px 0 8px; font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Passengers</h4>
-        <div id="passenger-list"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Floating Seat Counter (Direct child of body, always on top of map) -->
-  <div id="seat-counter" class="hidden">0/4 Seats</div>
-
-  <!-- Request Popup Overlay (Direct child of body, always on top of map) -->
-  <div id="request-popup" class="popup hidden">
-    <div class="popup-content">
-      <h3>New Passenger Request</h3>
-      <p id="req-passenger-name" style="font-weight:bold; font-size:17px; margin-bottom:8px; color:#1e293b;"></p>
-      <p><b>Pickup:</b> <span id="req-pickup"></span></p>
-      <p><b>Dropoff:</b> <span id="req-dropoff"></span></p>
-      <p><b>Detour:</b> <span id="req-detour"></span>m</p>
-      <div class="timer-bar"><div id="req-timer-fill"></div></div>
-      <div class="popup-actions">
-        <button id="req-reject" class="btn btn-danger">Reject</button>
-        <button id="req-accept" class="btn btn-success">Accept</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Settings Modal -->
-  <div id="settings-modal" class="modal hidden">
-    <div class="modal-content">
-      <h3>Driver Profile & Settings</h3>
-      
-      <div class="setting-group" style="margin-bottom: 12px;">
-        <label style="display:block; font-weight:600; font-size:13px; margin-bottom:4px;">Driver Name</label>
-        <input type="text" id="settings-name-input" placeholder="Your Full Name" />
-      </div>
-
-      <div class="setting-group" style="margin-bottom: 12px;">
-        <label style="display:block; font-weight:600; font-size:13px; margin-bottom:4px;">Vehicle Number</label>
-        <input type="text" id="settings-vehicle-input" placeholder="e.g. UP 14 AB 1234" />
-      </div>
-
-      <div class="setting-group" style="margin-bottom: 15px;">
-        <label for="detour-slider">Max Detour (meters): <span id="detour-val">1500</span></label>
-        <input type="range" id="detour-slider" min="100" max="3000" step="100" value="1500">
-      </div>
-
-      <button id="settings-close" class="btn btn-primary">Save & Close</button>
-      <button id="logout-btn" class="btn btn-danger" style="margin-top: 15px;">Logout</button>
-    </div>
-  </div>
-
-  <script src="js/config.js?v=20261023_2"></script>
-  <script src="js/auth.js?v=20261023_2"></script>
-  <script src="js/websocket.js?v=20261023_2"></script>
-  <script src="js/location.js?v=20261023_2"></script>
-  <script src="js/map.js?v=20261023_2"></script>
-  <script src="js/ride.js?v=20261023_2"></script>
-  <script src="js/app.js?v=20261023_2"></script>
 </body>
 </html>

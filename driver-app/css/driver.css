@@ -1,0 +1,36 @@
+:root { --accent: #1565c0; --accent-soft: #e6eefa; }
+:root[data-theme="dark"] { --accent: #1e88e5; --accent-soft: #15293f; }
+
+.map-fabs { bottom: calc(150px + var(--safe-bottom)); }
+@media (min-width: 900px) { .map-fabs { bottom: 24px; } }
+#sim-banner { top: calc(64px + var(--safe-top)); z-index: 560; }
+
+.duty-toggle { width: 100%; min-height: 60px; font-size: 18px; border-radius: var(--radius); }
+.duty-on { background: var(--ok); color: #fff; }
+.gps-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; margin: 10px 0; }
+
+.offer { border: 2px solid var(--accent); border-radius: var(--radius); padding: 14px; background: var(--surface); box-shadow: var(--shadow); }
+.offer h2 { margin: 0 0 6px; }
+.offer .big { font-size: 26px; font-weight: 800; }
+.countdown { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin: 10px 0 14px; }
+.countdown > div { height: 100%; background: var(--accent); transition: width 1s linear; }
+.offer-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+
+.step-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.step-head h2 { margin: 0; }
+.next-target { font-size: 18px; font-weight: 700; margin: 2px 0 6px; }
+.passenger-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); margin: 10px 0; }
+.primary-action { min-height: 58px; font-size: 18px; }
+.action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+
+.sim-panel { border: 1px dashed var(--sim); background: var(--sim-soft); border-radius: var(--radius-sm); padding: 12px; margin-top: 14px; }
+.sim-panel summary { cursor: pointer; font-weight: 700; color: var(--sim-ink); }
+.sim-panel .row { flex-wrap: wrap; margin-top: 10px; }
+
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.stat { background: var(--surface); border-radius: var(--radius-sm); padding: 12px; border: 1px solid var(--line); }
+.stat .value { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.stat .label { font-size: 12px; color: var(--muted); font-weight: 600; }
+.stars { display: flex; gap: 6px; justify-content: center; margin: 6px 0 10px; }
+.stars button { font-size: 30px; background: none; border: 0; cursor: pointer; color: var(--line); min-width: 44px; min-height: 44px; }
+.stars button.on { color: #f5a623; }

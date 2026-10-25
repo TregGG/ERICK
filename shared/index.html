@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campus Rick · IIT Roorkee</title>
+  <link rel="icon" href="/shared/icon.svg" type="image/svg+xml">
+  <script src="/shared/js/theme-init.js"></script>
+  <link rel="stylesheet" href="/shared/css/base.css">
+  <style>
+    body { display: grid; place-items: center; min-height: 100vh; padding: 20px; background: linear-gradient(160deg, var(--accent-soft), var(--bg) 60%); color: var(--text); }
+    main { width: min(440px, 100%); }
+    .apps { display: grid; gap: 10px; margin-top: 16px; }
+    .apps a { justify-content: flex-start; min-height: 64px; }
+    .apps small { display: block; font-weight: 400; color: var(--muted); }
+    .theme-corner { position: fixed; top: 12px; right: 12px; }
+  </style>
+  <script type="module" src="/shared/js/landing.js"></script>
+</head>
+<body>
+  <main class="card">
+    <div class="brand" style="box-shadow:none;padding-left:0"><span class="brand-mark" aria-hidden="true">&#x1F6FA;</span><span>Campus Rick<small>IIT Roorkee</small></span></div>
+    <h1 style="font-size:24px;margin:12px 0 4px">Campus e-rickshaw booking</h1>
+    <p class="muted" style="margin:0">Book, dispatch and track e-rickshaws across the IIT Roorkee campus.</p>
+    <div class="apps">
+      <a class="btn btn-primary" href="/passenger/">&#x1F464; <span>Book a ride<small style="color:inherit;opacity:.85">Passenger app</small></span></a>
+      <a class="btn btn-outline" href="/driver/">&#x1F6FA; <span>Drive<small>Driver app</small></span></a>
+      <a class="btn btn-outline" href="/admin/">&#x1F6E0; <span>Transport office<small>Administrator console</small></span></a>
+    </div>
+    <p class="small muted" style="margin:16px 0 0">Map data &copy; OpenStreetMap contributors.</p>
+  </main>
+</body>
+</html>

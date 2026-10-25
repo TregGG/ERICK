@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv*/
+.packages/
+.pytest_cache/
+
+# Local configuration and data (never commit secrets)
+backend/.env
+*.db
+*.db-wal
+*.db-shm
+
+# Test and tooling output
+e2e/screenshots/
+work/

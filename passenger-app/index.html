@@ -1,210 +1,39 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Campus Rick - Passenger</title>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2E7D32">
-    <link rel="stylesheet" href="css/style.css">
-    
-    <!-- Leaflet Map CSS & JS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Campus Rick · IIT Roorkee</title>
+  <meta name="theme-color" content="#2e7d32">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="/shared/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <script src="/shared/js/theme-init.js"></script>
+  <link rel="stylesheet" href="/shared/css/base.css">
+  <link rel="stylesheet" href="css/passenger.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script type="module" src="js/app.js"></script>
 </head>
 <body>
-
-    <!-- Top Bar -->
-    <div class="top-bar">
-        <div class="top-bar-content">
-            <button id="btn-menu" class="hamburger">☰</button>
-            <span class="app-title">Campus Rick</span>
-            <span id="user-display-name" class="user-badge"></span>
-            <span id="ws-status-indicator" class="status-disconnected"></span>
-        </div>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">&#x1F6FA;</span><span>Campus Rick<small>IIT Roorkee</small></span></div>
+      <span class="spacer"></span>
+      <span id="theme-slot"></span>
+      <span id="conn" class="pill" role="status"></span>
+      <button id="menu-btn" class="pill" aria-label="Open menu" hidden>&#9776;</button>
+    </header>
+    <div id="map" role="region" aria-label="Campus map"></div>
+    <div id="map-notice" class="map-notice" hidden></div>
+    <div class="map-fabs" id="fabs">
+      <button class="fab" id="locate-btn" aria-label="Show my location" title="Show my location">&#x1F4CD;</button>
     </div>
-
-    <!-- Map Container -->
-    <div id="map-container"></div>
-
-    <!-- Floating Action Buttons -->
-    <div class="fab-container">
-        <button id="btn-my-location" class="fab" title="My Location">📍</button>
-    </div>
-
-    <!-- Bottom Sheet -->
-    <div id="bottom-sheet" class="bottom-sheet half">
-        <div class="sheet-handle-container" id="sheet-handle">
-            <div class="sheet-handle"></div>
-        </div>
-        
-        <div class="sheet-content">
-            <!-- State: Idle (Request Form) -->
-            <div id="state-idle" class="sheet-state">
-                <div class="sheet-header-row">
-                    <h3>Where to?</h3>
-                    <span class="fare-badge">Fixed ₹10</span>
-                </div>
-                
-                <div class="pin-hint" id="pin-instruction">👉 Tap map to set <b>Start (Pickup)</b></div>
-                <div class="pin-actions">
-                    <button type="button" id="btn-mode-pickup" class="btn-sm btn-pickup active">🟢 Set Start</button>
-                    <button type="button" id="btn-mode-dropoff" class="btn-sm btn-dropoff">🔴 Set Stop</button>
-                    <button type="button" id="btn-clear-pins" class="btn-sm btn-outline">✕ Clear</button>
-                </div>
-
-                <div class="input-group">
-                    <label>Pickup Location (Start)</label>
-                    <input type="text" id="input-pickup" class="input-field" placeholder="Tap map or pick landmark below" readonly>
-                </div>
-                <div class="input-group">
-                    <label>Dropoff Location (Stop)</label>
-                    <input type="text" id="input-dropoff" class="input-field" placeholder="Tap map or pick landmark below" readonly>
-                </div>
-
-                <div class="chips-container">
-                    <span class="chips-title">Campus Landmarks:</span>
-                    <div id="landmark-chips" class="landmark-chips"></div>
-                </div>
-
-                <button id="btn-request-ride" class="btn-primary" style="margin-top: 15px;">Request Rick (₹10)</button>
-            </div>
-
-            <!-- State: Requesting / Loading -->
-            <div id="state-loading" class="sheet-state hidden text-center">
-                <div class="loading-spinner"></div>
-                <h3 id="loading-text">Finding you a rick...</h3>
-            </div>
-
-            <!-- State: Queued -->
-            <div id="state-queued" class="sheet-state hidden text-center">
-                <h3 class="mb-4">You're in the queue</h3>
-                <div class="info-card">
-                    <span class="title">Current Position</span>
-                    <span id="queue-position" class="value">#1</span>
-                </div>
-                <p class="text-light mb-4">We'll notify you when matched.</p>
-                <button class="btn-danger btn-cancel-ride">Cancel Request</button>
-            </div>
-
-            <!-- State: Matched -->
-            <div id="state-matched" class="sheet-state hidden">
-                <h3 class="mb-4 text-center">Ride Matched!</h3>
-                <div class="info-card">
-                    <span class="title">Driver</span>
-                    <span id="driver-name" class="value">Loading...</span>
-                </div>
-                <div class="info-card">
-                    <span class="title">Vehicle Number</span>
-                    <span id="vehicle-number" class="value">Loading...</span>
-                </div>
-                <div class="info-card">
-                    <span class="title">Arrival Time</span>
-                    <span id="eta" class="value">ETA: ? min</span>
-                </div>
-                <button class="btn-danger btn-cancel-ride">Cancel Ride</button>
-            </div>
-
-            <!-- State: Pickup Enroute / Picked Up -->
-            <div id="state-enroute" class="sheet-state hidden text-center">
-                <h3 id="enroute-msg" class="mb-4">Driver is arriving...</h3>
-                <div class="info-card">
-                    <span class="title">Fixed Fare</span>
-                    <span class="value">₹10</span>
-                </div>
-            </div>
-
-            <!-- State: Completed -->
-            <div id="state-completed" class="sheet-state hidden text-center">
-                <h3 class="mb-4">Ride Complete!</h3>
-                <div class="info-card">
-                    <span class="title">Total Fare</span>
-                    <span class="value">₹10</span>
-                </div>
-                <button id="btn-pay" class="btn-primary">Pay via QR</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Auth Modal Overlay -->
-    <div id="auth-modal" class="auth-overlay hidden">
-        <div class="auth-card">
-            
-            <!-- Login View -->
-            <div id="login-view">
-                <h2>Welcome Back</h2>
-                <form id="form-login">
-                    <div class="input-group">
-                        <label>Phone Number</label>
-                        <input type="tel" id="login-phone" class="input-field" placeholder="10-digit number" required>
-                    </div>
-                    <button type="submit" class="btn-primary">Send OTP</button>
-                </form>
-                <div class="auth-links">
-                    New here? <a href="#" id="btn-show-register">Create an account</a>
-                </div>
-            </div>
-
-            <!-- Register View -->
-            <div id="register-view" class="hidden">
-                <h2>Create Account</h2>
-                <form id="form-register">
-                    <div class="input-group">
-                        <label>Full Name</label>
-                        <input type="text" id="reg-username" class="input-field" placeholder="John Doe" required>
-                    </div>
-                    <div class="input-group">
-                        <label>Phone Number</label>
-                        <input type="tel" id="reg-phone" class="input-field" placeholder="10-digit number" required>
-                    </div>
-                    <button type="submit" class="btn-primary">Register</button>
-                </form>
-                <div class="auth-links">
-                    Already have an account? <a href="#" id="btn-show-login">Login</a>
-                </div>
-            </div>
-
-            <!-- OTP View -->
-            <div id="otp-view" class="hidden">
-                <h2>Enter OTP</h2>
-                <p class="mb-4 text-center text-light">We've sent a code to your phone.</p>
-                <form id="form-otp">
-                    <div class="otp-container">
-                        <input type="text" maxlength="1" class="otp-input" pattern="\d" required>
-                        <input type="text" maxlength="1" class="otp-input" pattern="\d" required>
-                        <input type="text" maxlength="1" class="otp-input" pattern="\d" required>
-                        <input type="text" maxlength="1" class="otp-input" pattern="\d" required>
-                        <input type="text" maxlength="1" class="otp-input" pattern="\d" required>
-                        <input type="text" maxlength="1" class="otp-input" pattern="\d" required>
-                    </div>
-                    <button type="submit" class="btn-primary">Verify & Login</button>
-                </form>
-            </div>
-
-        </div>
-    </div>
-
-    <!-- Profile Modal Overlay -->
-    <div id="profile-modal" class="auth-overlay hidden">
-        <div class="auth-card">
-            <h2>Set Up Profile</h2>
-            <p class="mb-4 text-center text-light">Enter your name so the driver can identify you.</p>
-            <form id="form-profile">
-                <div class="input-group">
-                    <label>Your Name</label>
-                    <input type="text" id="profile-name" class="input-field" placeholder="e.g. Rahul Sharma" required>
-                </div>
-                <button type="submit" class="btn-primary">Save Profile</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Scripts -->
-    <script src="js/config.js?v=20261023_2"></script>
-    <script src="js/websocket.js?v=20261023_2"></script>
-    <script src="js/auth.js?v=20261023_2"></script>
-    <script src="js/map.js?v=20261023_2"></script>
-    <script src="js/ride.js?v=20261023_2"></script>
-    <script src="js/app.js?v=20261023_2"></script>
+    <section id="sheet" class="sheet" aria-live="polite">
+      <button class="sheet-handle" id="sheet-handle" aria-label="Expand or collapse panel"><span></span></button>
+      <div class="sheet-body" id="sheet-body">
+        <div class="stack"><div class="skeleton" style="height:22px;width:60%"></div><div class="skeleton" style="height:48px"></div><div class="skeleton" style="height:48px"></div></div>
+      </div>
+    </section>
+  </div>
 </body>
 </html>
