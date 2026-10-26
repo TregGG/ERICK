@@ -1,12 +1,10 @@
 {
-  "name": "Campus Rick - Passenger",
-  "short_name": "CampusRick",
-  "start_url": "/",
+  "name": "Campus Rick - IIT Roorkee",
+  "short_name": "Campus Rick",
+  "start_url": "/passenger/",
+  "scope": "/passenger/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2E7D32",
-  "icons": [
-    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
-    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"}
-  ]
+  "background_color": "#f3f5f4",
+  "theme_color": "#2e7d32",
+  "icons": [{ "src": "/shared/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
 }

@@ -1,0 +1,46 @@
+:root { --accent: #2e7d32; --accent-soft: #e6f2e7; }
+:root[data-theme="dark"] { --accent: #43a047; --accent-soft: #1b3321; }
+
+.map-fabs { bottom: calc(150px + var(--safe-bottom)); }
+@media (min-width: 900px) { .map-fabs { bottom: 24px; } }
+
+.loc-fields { position: relative; display: grid; gap: 8px; margin-bottom: 12px; }
+.loc-field {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 8px 14px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); text-align: left; cursor: pointer;
+}
+.loc-field.active { border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
+.loc-field .marker { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.loc-field .marker.pickup { background: #1f7a36; }
+.loc-field .marker.dropoff { background: #c62828; border-radius: 2px; }
+.loc-field .text { display: grid; min-width: 0; }
+.loc-field .text small { color: var(--muted); font-size: 12px; font-weight: 600; }
+.loc-field .text span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loc-field .placeholder { color: var(--muted); }
+
+.search-panel { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); margin-bottom: 12px; }
+.search-panel .input { border: 0; border-bottom: 1px solid var(--line); border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+.search-results { max-height: 260px; overflow-y: auto; }
+.search-results button { display: flex; gap: 10px; align-items: center; width: 100%; padding: 10px 14px; border: 0; background: none; text-align: left; cursor: pointer; min-height: 46px; }
+.search-results button:hover, .search-results button:focus-visible { background: var(--surface-2); }
+.search-results .group { padding: 8px 14px 2px; font-size: 11px; font-weight: 800; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; }
+.search-results .cat { font-size: 12px; color: var(--muted); margin-left: auto; text-transform: capitalize; }
+
+.trip-summary { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 12px 14px; background: var(--accent-soft); border-radius: var(--radius-sm); margin-bottom: 12px; }
+.trip-summary .fare { font-size: 22px; font-weight: 800; grid-row: span 2; align-self: center; }
+
+.driver-card { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); }
+.avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 800; font-size: 20px; }
+.plate { display: inline-block; font-family: ui-monospace, Consolas, monospace; font-weight: 700; letter-spacing: .06em; border: 2px solid #222; border-radius: 6px; padding: 1px 8px; background: #fff8d6; color: #111; margin-top: 4px; }
+.eta-big { font-size: 28px; font-weight: 800; line-height: 1.1; }
+.status-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.status-head h2 { margin: 0; }
+.pulse { width: 64px; height: 64px; border-radius: 50%; background: var(--accent-soft); display: grid; place-items: center; margin: 4px auto 12px; position: relative; font-size: 28px; }
+.pulse::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 3px solid var(--accent); animation: ping 1.6s ease-out infinite; }
+@keyframes ping { from { transform: scale(.8); opacity: .9; } to { transform: scale(1.5); opacity: 0; } }
+.freshness { font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.stars { display: flex; gap: 6px; justify-content: center; margin: 8px 0 12px; }
+.stars button { font-size: 32px; background: none; border: 0; cursor: pointer; color: var(--line); min-width: 44px; min-height: 44px; }
+.stars button.on { color: #f5a623; }
+.route-stops { display: grid; gap: 6px; font-size: 14px; margin: 10px 0; }
+.route-stops div { display: flex; gap: 10px; align-items: center; }

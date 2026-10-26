@@ -1,0 +1,622 @@
+{
+ "campus": "Indian Institute of Technology Roorkee",
+ "source": "OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright). Retrieved 2026-10-25 via Overpass API.",
+ "verification": "Coordinates are OSM feature centroids, not officially surveyed pickup points. Pickup-point flags are a development fixture and must be confirmed by campus administration before production use.",
+ "boundary": {
+  "osm_ref": "way/52435788",
+  "type": "Polygon",
+  "coordinates": [
+   [
+    [
+     77.8896054,
+     29.8664441
+    ],
+    [
+     77.8895732,
+     29.8659603
+    ],
+    [
+     77.8894552,
+     29.8653369
+    ],
+    [
+     77.8913354,
+     29.8644891
+    ],
+    [
+     77.8903537,
+     29.8633032
+    ],
+    [
+     77.890006,
+     29.8629204
+    ],
+    [
+     77.8927577,
+     29.86135
+    ],
+    [
+     77.8929296,
+     29.8612546
+    ],
+    [
+     77.8928876,
+     29.861197
+    ],
+    [
+     77.8942456,
+     29.860615
+    ],
+    [
+     77.8957906,
+     29.8604289
+    ],
+    [
+     77.8995886,
+     29.8600567
+    ],
+    [
+     77.9015412,
+     29.8599451
+    ],
+    [
+     77.9029596,
+     29.8598074
+    ],
+    [
+     77.900607,
+     29.861465
+    ],
+    [
+     77.9001787,
+     29.8620153
+    ],
+    [
+     77.9021313,
+     29.8636343
+    ],
+    [
+     77.9020617,
+     29.8637124
+    ],
+    [
+     77.9019849,
+     29.8637985
+    ],
+    [
+     77.9019337,
+     29.8638561
+    ],
+    [
+     77.9018148,
+     29.8639354
+    ],
+    [
+     77.9016977,
+     29.8640468
+    ],
+    [
+     77.9016081,
+     29.8641422
+    ],
+    [
+     77.9014992,
+     29.8642479
+    ],
+    [
+     77.9014312,
+     29.8643139
+    ],
+    [
+     77.9013267,
+     29.8644153
+    ],
+    [
+     77.9012417,
+     29.8644978
+    ],
+    [
+     77.9010507,
+     29.8646588
+    ],
+    [
+     77.9009717,
+     29.8647336
+    ],
+    [
+     77.9008858,
+     29.8648302
+    ],
+    [
+     77.9006302,
+     29.8649165
+    ],
+    [
+     77.9009092,
+     29.8651398
+    ],
+    [
+     77.9010149,
+     29.8652154
+    ],
+    [
+     77.9013973,
+     29.8654887
+    ],
+    [
+     77.9017621,
+     29.8659725
+    ],
+    [
+     77.9020035,
+     29.8663586
+    ],
+    [
+     77.9021054,
+     29.8668099
+    ],
+    [
+     77.9022127,
+     29.8679589
+    ],
+    [
+     77.9021269,
+     29.8681403
+    ],
+    [
+     77.901569,
+     29.8684753
+    ],
+    [
+     77.9001421,
+     29.8689963
+    ],
+    [
+     77.8997558,
+     29.869294
+    ],
+    [
+     77.8993635,
+     29.8696139
+    ],
+    [
+     77.8981465,
+     29.8707035
+    ],
+    [
+     77.896859,
+     29.8717594
+    ],
+    [
+     77.895062,
+     29.8728944
+    ],
+    [
+     77.8946328,
+     29.8724362
+    ],
+    [
+     77.8939006,
+     29.8716478
+    ],
+    [
+     77.8938562,
+     29.8716049
+    ],
+    [
+     77.8936642,
+     29.8714196
+    ],
+    [
+     77.89302,
+     29.8707979
+    ],
+    [
+     77.8927472,
+     29.8705476
+    ],
+    [
+     77.8928089,
+     29.8700778
+    ],
+    [
+     77.8929108,
+     29.8697615
+    ],
+    [
+     77.8930664,
+     29.8693219
+    ],
+    [
+     77.8932837,
+     29.8688427
+    ],
+    [
+     77.8927579,
+     29.8687334
+    ],
+    [
+     77.8916824,
+     29.8685311
+    ],
+    [
+     77.8913256,
+     29.8685171
+    ],
+    [
+     77.8907758,
+     29.8685567
+    ],
+    [
+     77.8901867,
+     29.8686858
+    ],
+    [
+     77.8898521,
+     29.8687142
+    ],
+    [
+     77.8896054,
+     29.8664441
+    ]
+   ]
+  ]
+ },
+ "center": {
+  "lat": 29.8663509,
+  "lng": 77.8962074
+ },
+ "landmarks": [
+  {
+   "name": "Century Gate",
+   "category": "gate",
+   "lat": 29.868686,
+   "lng": 77.890187,
+   "is_pickup_point": true,
+   "osm_ref": "node/2932791822",
+   "osm_name": "Century Gate"
+  },
+  {
+   "name": "Mahatma Gandhi Central Library",
+   "category": "academic",
+   "lat": 29.865311,
+   "lng": 77.89477,
+   "is_pickup_point": true,
+   "osm_ref": "way/289730185",
+   "osm_name": "Mahatma Gandhi Central Library IIT Roorkee"
+  },
+  {
+   "name": "New Lecture Hall Complex",
+   "category": "academic",
+   "lat": 29.864819,
+   "lng": 77.8939,
+   "is_pickup_point": true,
+   "osm_ref": "way/309750616",
+   "osm_name": "New Lecture Hall Complex"
+  },
+  {
+   "name": "James Thomason Building",
+   "category": "academic",
+   "lat": 29.864655,
+   "lng": 77.896573,
+   "is_pickup_point": true,
+   "osm_ref": "relation/8255183",
+   "osm_name": "James Thomsan Building"
+  },
+  {
+   "name": "Computer Science & Electronics Dept.",
+   "category": "academic",
+   "lat": 29.863512,
+   "lng": 77.895913,
+   "is_pickup_point": false,
+   "osm_ref": "way/289739851",
+   "osm_name": "Computer Science & Electronics Department"
+  },
+  {
+   "name": "Electrical Engineering Dept.",
+   "category": "academic",
+   "lat": 29.863674,
+   "lng": 77.897324,
+   "is_pickup_point": false,
+   "osm_ref": "way/408149338",
+   "osm_name": "Electrical Enginnering Department"
+  },
+  {
+   "name": "Mechanical Engineering Dept.",
+   "category": "academic",
+   "lat": 29.862369,
+   "lng": 77.89756,
+   "is_pickup_point": false,
+   "osm_ref": "way/289746872",
+   "osm_name": "Mechanical Department"
+  },
+  {
+   "name": "Civil Engineering Dept.",
+   "category": "academic",
+   "lat": 29.862609,
+   "lng": 77.898536,
+   "is_pickup_point": false,
+   "osm_ref": "way/289745340",
+   "osm_name": "Civil Department"
+  },
+  {
+   "name": "Chemical Engineering Dept.",
+   "category": "academic",
+   "lat": 29.867157,
+   "lng": 77.893239,
+   "is_pickup_point": false,
+   "osm_ref": "way/408239269",
+   "osm_name": "Chemical Engineering Department"
+  },
+  {
+   "name": "Architecture & Planning Dept.",
+   "category": "academic",
+   "lat": 29.863522,
+   "lng": 77.899793,
+   "is_pickup_point": false,
+   "osm_ref": "relation/6110955",
+   "osm_name": "Architecture and Planning Department"
+  },
+  {
+   "name": "Earth Sciences Dept.",
+   "category": "academic",
+   "lat": 29.863585,
+   "lng": 77.899255,
+   "is_pickup_point": false,
+   "osm_ref": "way/408149343",
+   "osm_name": "Earth Sciences Department"
+  },
+  {
+   "name": "Biosciences & Bioengineering Dept.",
+   "category": "academic",
+   "lat": 29.862255,
+   "lng": 77.891532,
+   "is_pickup_point": false,
+   "osm_ref": "way/408272818",
+   "osm_name": "Biosciences And Bioengineering Department"
+  },
+  {
+   "name": "Metallurgy Dept.",
+   "category": "academic",
+   "lat": 29.86671,
+   "lng": 77.893712,
+   "is_pickup_point": false,
+   "osm_ref": "relation/6111838",
+   "osm_name": "Metallurgy Department"
+  },
+  {
+   "name": "Earthquake Engineering Dept.",
+   "category": "academic",
+   "lat": 29.86651,
+   "lng": 77.900686,
+   "is_pickup_point": false,
+   "osm_ref": "way/408272803",
+   "osm_name": "Earthquake Engineering Department"
+  },
+  {
+   "name": "Department of Management Studies",
+   "category": "academic",
+   "lat": 29.864745,
+   "lng": 77.894613,
+   "is_pickup_point": false,
+   "osm_ref": "way/289737852",
+   "osm_name": "Department of Management Studies, IIT Roorkee"
+  },
+  {
+   "name": "Mathematics & Humanities Dept.",
+   "category": "academic",
+   "lat": 29.861827,
+   "lng": 77.896228,
+   "is_pickup_point": false,
+   "osm_ref": "way/1110096247",
+   "osm_name": "Mathematics And Humanities Department"
+  },
+  {
+   "name": "Convocation Hall",
+   "category": "landmark",
+   "lat": 29.868176,
+   "lng": 77.890952,
+   "is_pickup_point": true,
+   "osm_ref": "way/289735662",
+   "osm_name": "Convocation Hall"
+  },
+  {
+   "name": "OP Jain Auditorium",
+   "category": "landmark",
+   "lat": 29.863183,
+   "lng": 77.898882,
+   "is_pickup_point": false,
+   "osm_ref": "way/408149330",
+   "osm_name": "OP Jain Auditorium"
+  },
+  {
+   "name": "Student Activity Center",
+   "category": "landmark",
+   "lat": 29.866516,
+   "lng": 77.899731,
+   "is_pickup_point": true,
+   "osm_ref": "way/1080933915",
+   "osm_name": "Student Activity Center"
+  },
+  {
+   "name": "Multi Activity Centre (MAC)",
+   "category": "landmark",
+   "lat": 29.87014,
+   "lng": 77.89636,
+   "is_pickup_point": true,
+   "osm_ref": "relation/6110367",
+   "osm_name": "Multi Activity Centre (MAC)"
+  },
+  {
+   "name": "Institute Hospital",
+   "category": "health",
+   "lat": 29.861718,
+   "lng": 77.892923,
+   "is_pickup_point": true,
+   "osm_ref": "way/1110093487",
+   "osm_name": "Institute Hospital"
+  },
+  {
+   "name": "Lal Bahadur Shastri Stadium",
+   "category": "sports",
+   "lat": 29.867116,
+   "lng": 77.895306,
+   "is_pickup_point": false,
+   "osm_ref": "way/263985344",
+   "osm_name": "Lal Bahadur Shastri Stadium"
+  },
+  {
+   "name": "Major Dhyan Chand Stadium",
+   "category": "sports",
+   "lat": 29.867761,
+   "lng": 77.898828,
+   "is_pickup_point": false,
+   "osm_ref": "way/626202069",
+   "osm_name": "Major Dhyan Chand Stadium"
+  },
+  {
+   "name": "Swimming Pool",
+   "category": "sports",
+   "lat": 29.866348,
+   "lng": 77.897393,
+   "is_pickup_point": false,
+   "osm_ref": "node/3150787598",
+   "osm_name": "IIT Roorkee Swimming Pool"
+  },
+  {
+   "name": "Radhakrishnan Bhawan",
+   "category": "hostel",
+   "lat": 29.871204,
+   "lng": 77.895662,
+   "is_pickup_point": true,
+   "osm_ref": "relation/6110366",
+   "osm_name": "Radhakrishnan Bhawan"
+  },
+  {
+   "name": "Rajendra Bhawan",
+   "category": "hostel",
+   "lat": 29.87101,
+   "lng": 77.894076,
+   "is_pickup_point": true,
+   "osm_ref": "way/408251231",
+   "osm_name": "Rajendra Bhawan"
+  },
+  {
+   "name": "Rajiv Bhawan",
+   "category": "hostel",
+   "lat": 29.869777,
+   "lng": 77.894976,
+   "is_pickup_point": true,
+   "osm_ref": "relation/11284811",
+   "osm_name": "Rajiv Bhawan"
+  },
+  {
+   "name": "Cautley Bhawan",
+   "category": "hostel",
+   "lat": 29.870552,
+   "lng": 77.896841,
+   "is_pickup_point": true,
+   "osm_ref": "way/408124364",
+   "osm_name": "Cautley Bhawan"
+  },
+  {
+   "name": "Ganga Bhawan",
+   "category": "hostel",
+   "lat": 29.871685,
+   "lng": 77.894367,
+   "is_pickup_point": true,
+   "osm_ref": "way/408251227",
+   "osm_name": "Ganga Bhawan"
+  },
+  {
+   "name": "Ravindra Bhawan",
+   "category": "hostel",
+   "lat": 29.864933,
+   "lng": 77.892824,
+   "is_pickup_point": true,
+   "osm_ref": "relation/14382136",
+   "osm_name": "Ravindra Bhawan"
+  },
+  {
+   "name": "Govind Bhawan",
+   "category": "hostel",
+   "lat": 29.862027,
+   "lng": 77.894473,
+   "is_pickup_point": true,
+   "osm_ref": "node/5417800173",
+   "osm_name": "Govind Bhawan"
+  },
+  {
+   "name": "Himalaya Bhawan",
+   "category": "hostel",
+   "lat": 29.861134,
+   "lng": 77.896185,
+   "is_pickup_point": true,
+   "osm_ref": "relation/16681073",
+   "osm_name": "Himalaya Bhawan"
+  },
+  {
+   "name": "Kasturba Bhawan",
+   "category": "hostel",
+   "lat": 29.867222,
+   "lng": 77.900693,
+   "is_pickup_point": true,
+   "osm_ref": "relation/6107151",
+   "osm_name": "Kasturba Bhawan"
+  },
+  {
+   "name": "Sarojini Bhawan",
+   "category": "hostel",
+   "lat": 29.86505,
+   "lng": 77.900031,
+   "is_pickup_point": true,
+   "osm_ref": "way/1221685741",
+   "osm_name": "Sarojini Bhawan"
+  },
+  {
+   "name": "Jawahar Bhawan (Mess)",
+   "category": "hostel",
+   "lat": 29.863464,
+   "lng": 77.900573,
+   "is_pickup_point": true,
+   "osm_ref": "way/408149336",
+   "osm_name": "Jawahar Bhawan Mess"
+  },
+  {
+   "name": "Khosla International House",
+   "category": "hostel",
+   "lat": 29.861563,
+   "lng": 77.898653,
+   "is_pickup_point": false,
+   "osm_ref": "way/389670558",
+   "osm_name": "Khosla International House"
+  },
+  {
+   "name": "State Bank of India",
+   "category": "services",
+   "lat": 29.864516,
+   "lng": 77.89595,
+   "is_pickup_point": false,
+   "osm_ref": "node/2932822246",
+   "osm_name": "State Bank of India"
+  },
+  {
+   "name": "Post Office IITR",
+   "category": "services",
+   "lat": 29.863784,
+   "lng": 77.894051,
+   "is_pickup_point": false,
+   "osm_ref": "node/2932748672",
+   "osm_name": "Post Office IITR"
+  },
+  {
+   "name": "Student's Club",
+   "category": "landmark",
+   "lat": 29.863918,
+   "lng": 77.89463,
+   "is_pickup_point": false,
+   "osm_ref": "node/10173182552",
+   "osm_name": "Student's Club"
+  }
+ ]
+}
