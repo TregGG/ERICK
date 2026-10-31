@@ -22,6 +22,7 @@ os.environ.update({
     "DATABASE_URL": TEST_DB,
     "JWT_SECRET": "test-secret-" + "x" * 40,
     "OTP_DEV_MODE": "true",
+    "SMS_PROVIDER": "console",
     "SIMULATION_ENABLED": "true",
     "DISPATCH_ENABLED": "false",
     "ROUTING_BASE_URL": "",
