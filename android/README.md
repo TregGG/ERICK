@@ -21,7 +21,9 @@ Download the APKs from the run's **Artifacts** section and install them on a pho
 (allow "install unknown apps" for your browser or file manager).
 
 Without signing secrets the workflow makes **debug** APKs. With them it makes signed **release** APKs
-and `.aab` bundles for the Play Store.
+and `.aab` bundles for the Play Store, and publishes them on the repository's **Releases** page as a
+pre-release named "Android beta N" (tag `android-beta-N`, N = workflow run number). Share that page
+with testers; they install the APK straight from it.
 
 ### Signing (one-time)
 
