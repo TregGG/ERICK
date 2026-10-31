@@ -1,0 +1,6 @@
+# Linux override used by start-erick.sh: keeps PostgreSQL data in a bind mount (ERICK_PGDATA)
+# so it works when Docker's data-root is on a filesystem without chown support (e.g. NTFS).
+services:
+  database:
+    volumes:
+      - ${ERICK_PGDATA}:/var/lib/postgresql/data
