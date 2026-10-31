@@ -39,12 +39,12 @@ Legend: [x] done and verified by a test or run · [~] done, partially verified �
       cash collection, earnings from completed rides, history, labelled test simulator
 - [x] Admin: overview, rides (detail, timeline, offers, cancel), driver verification/suspension, account
       suspension, landmarks (add/disable/pickup flag), fares & dispatch settings, reports, audit log
-- [~] Real SMS (Twilio adapter written, untested without credentials)
+- [~] Real SMS: Twilio Verify (recommended) and Twilio Messaging implemented and tested against a simulated Twilio API; needs a live test with real credentials
 - [ ] Payment gateway (cash only by design for now)
 - [ ] Push notifications when the app is closed
 
 ## Phase 6 — quality & deployment
-- [x] Backend tests: 50 on PostgreSQL, 49 + 1 skipped on SQLite
+- [x] Backend tests: 60 on PostgreSQL, 59 + 1 skipped on SQLite
 - [x] Browser end-to-end scenario (`e2e/test_e2e.py`): two Chromium sessions, browser-GPS fixtures,
       full lifecycle, cancellation, competing acceptance, admin console, console/HTTP error check — passing
 - [x] Restart persistence verified on the dev database (ride counts identical before/after restart)

@@ -74,6 +74,33 @@ python -m backend.manage create-admin --phone 98xxxxxxxx --name "Transport Offic
 
 `seed-demo` refuses to run when `APP_ENV=production`.
 
+## SMS login with Twilio Verify
+
+1. Create a Twilio account at <https://www.twilio.com/try-twilio>. In the console, note the
+   **Account SID** and **Auth Token** (Account Info).
+2. Go to **Verify → Services → Create new**. Give it a friendly name such as "Campus Rick" (this name
+   appears in the SMS), keep SMS enabled, and copy the **Service SID** (starts with `VA`).
+3. Trial accounts can only send to numbers you verify under **Phone Numbers → Verified Caller IDs**.
+   Upgrade the account to send to any number. Check **Messaging → Geo permissions** allows India.
+4. In `backend\.env` set:
+   ```
+   SMS_PROVIDER=twilio_verify
+   OTP_DEV_MODE=false
+   TWILIO_ACCOUNT_SID=AC...
+   TWILIO_AUTH_TOKEN=...
+   TWILIO_VERIFY_SERVICE_SID=VA...
+   ```
+5. Restart the server. It refuses to start if any Twilio value is missing, and says which.
+
+With Twilio Verify, Twilio generates, sends and checks the code (default validity 10 minutes; the app
+additionally limits a code to `OTP_EXPIRY_SECONDS`, attempts to `OTP_MAX_ATTEMPTS`, and keeps its own
+resend cooldown and hourly limits). Verify uses Twilio's pre-registered templates, so no Indian DLT
+registration of your own is required. Each verification is billed by Twilio. To go back to on-screen
+development codes, set `SMS_PROVIDER=console` and `OTP_DEV_MODE=true`.
+
+`SMS_PROVIDER=twilio` (plain SMS with an app-generated code, `TWILIO_FROM_NUMBER` required) is also
+supported, but Indian carriers block plain application SMS unless the sender and template are DLT-registered.
+
 ## Data retention
 
 * `driver_locations`: latest position only, deleted when the driver goes off duty.

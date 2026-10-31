@@ -33,10 +33,11 @@ class Settings(BaseSettings):
     OTP_REQUESTS_PER_IP_PER_10_MIN: int = 10
     # Development-only: return the OTP in the API response so it can be shown on screen.
     OTP_DEV_MODE: bool = False
-    SMS_PROVIDER: str = "console"  # console | twilio
+    SMS_PROVIDER: str = "console"  # console | twilio | twilio_verify (see services/sms.py)
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
-    TWILIO_FROM_NUMBER: str = ""
+    TWILIO_FROM_NUMBER: str = ""         # twilio (Messaging) only
+    TWILIO_VERIFY_SERVICE_SID: str = ""  # twilio_verify only (starts with "VA")
 
     CORS_ORIGINS: List[str] = Field(default_factory=list)
 
@@ -87,8 +88,10 @@ class Settings(BaseSettings):
                 problems.append("DATABASE_URL must point to PostgreSQL/PostGIS")
         elif self.JWT_SECRET in _INSECURE_SECRETS and self.APP_ENV != "test":
             print("WARNING: JWT_SECRET is a placeholder. Set a random value in backend/.env.")
+        from .services.sms import config_problems  # local import: sms imports settings
+        problems += config_problems()
         if problems:
-            raise RuntimeError("Unsafe production configuration: " + "; ".join(problems))
+            raise RuntimeError("Invalid configuration: " + "; ".join(problems))
 
 
 settings = Settings()

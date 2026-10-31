@@ -19,6 +19,7 @@ from ..services.audit import audit
 from ..services.rides import clean_text
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+PROVIDER_CODE = "provider:twilio_verify"  # code_hash marker: the SMS provider holds and checks the code
 AppRole = Literal["passenger", "driver", "admin"]
 
 
@@ -90,19 +91,24 @@ async def request_otp(body: PhoneBody, request: Request, db: AsyncSession = Depe
     # Older unused codes stop working as soon as a new one is issued.
     await db.execute(update(OtpChallenge).where(OtpChallenge.phone == body.phone, OtpChallenge.consumed_at.is_(None))
                      .values(consumed_at=now))
-    code = generate_otp()
-    db.add(OtpChallenge(phone=body.phone, app_role=body.app, code_hash=hash_otp(body.phone, code),
+    # With Twilio Verify the provider owns the code; we keep the challenge row for our own limits and expiry.
+    code = None if sms.uses_provider_codes() else generate_otp()
+    db.add(OtpChallenge(phone=body.phone, app_role=body.app,
+                        code_hash=PROVIDER_CODE if code is None else hash_otp(body.phone, code),
                         expires_at=now + timedelta(seconds=settings.OTP_EXPIRY_SECONDS), request_ip=ip, created_at=now))
     try:
-        await sms.send_otp(body.phone, code)
-    except sms.SmsError:
+        if code is None:
+            await sms.start_verification(body.phone)
+        else:
+            await sms.send_otp(body.phone, code)
+    except sms.SmsError as exc:
         await db.rollback()
-        raise HTTPException(503, "We could not send the code right now. Please try again shortly.")
+        raise HTTPException(exc.status, exc.message)
     await db.commit()
 
     response = {"expires_in": settings.OTP_EXPIRY_SECONDS, "resend_in": settings.OTP_RESEND_COOLDOWN_SECONDS,
                 "new_account": user is None}
-    if settings.OTP_DEV_MODE and not settings.is_production:
+    if code is not None and settings.OTP_DEV_MODE and not settings.is_production:
         response["dev_otp"] = code
     return response
 
@@ -121,7 +127,17 @@ async def verify_otp(body: VerifyBody, request: Request, db: AsyncSession = Depe
         raise HTTPException(400, "This code has expired. Request a new one.")
     if challenge.attempts >= settings.OTP_MAX_ATTEMPTS:
         raise HTTPException(429, "Too many incorrect attempts. Request a new code.")
-    if not otp_matches(body.phone, body.code, challenge.code_hash):
+    if challenge.code_hash == PROVIDER_CODE:
+        try:
+            valid = await sms.check_verification(body.phone, body.code)
+        except sms.SmsError as exc:
+            if exc.kind == "expired":
+                challenge.consumed_at = now
+                await db.commit()
+            raise HTTPException(exc.status, exc.message)
+    else:
+        valid = otp_matches(body.phone, body.code, challenge.code_hash)
+    if not valid:
         challenge.attempts += 1
         remaining = settings.OTP_MAX_ATTEMPTS - challenge.attempts
         if remaining <= 0:
