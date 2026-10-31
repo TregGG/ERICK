@@ -1,0 +1,13 @@
+{
+  "appId": "in.ac.iitr.campusrick.driver",
+  "appName": "Rick Driver",
+  "webDir": "www",
+  "server": {
+    "url": "https://campusrick.centralindia.cloudapp.azure.com/driver/",
+    "cleartext": false,
+    "allowNavigation": ["campusrick.centralindia.cloudapp.azure.com"]
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

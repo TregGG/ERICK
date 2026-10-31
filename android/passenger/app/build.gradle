@@ -1,0 +1,48 @@
+plugins {
+    id "com.android.application"
+}
+
+def twaHost = project.property("twaHost")
+
+android {
+    namespace "in.ac.iitr.campusrick.passenger"
+    compileSdk 36
+    defaultConfig {
+        applicationId "in.ac.iitr.campusrick.passenger"
+        minSdk 24
+        targetSdk 36
+        // CI passes the run number so each build installs over the previous one.
+        versionCode((System.getenv("ANDROID_VERSION_CODE") ?: "1").toInteger())
+        versionName "1.0.${System.getenv("ANDROID_VERSION_CODE") ?: "0"}"
+        manifestPlaceholders = [hostName: twaHost]
+        resValue "string", "launch_url", "https://${twaHost}/passenger/"
+        resValue "string", "asset_statements",
+            "[{\\\"relation\\\": [\\\"delegate_permission/common.handle_all_urls\\\"], \\\"target\\\": {\\\"namespace\\\": \\\"web\\\", \\\"site\\\": \\\"https://${twaHost}\\\"}}]"
+    }
+    // Release signing comes from CI secrets (see .github/workflows/android.yml); without them
+    // only debug builds are possible.
+    signingConfigs {
+        release {
+            if (System.getenv("ANDROID_KEYSTORE_FILE")) {
+                storeFile file(System.getenv("ANDROID_KEYSTORE_FILE"))
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation "com.google.androidbrowserhelper:androidbrowserhelper:2.7.4"
+}

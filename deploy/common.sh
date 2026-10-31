@@ -5,6 +5,8 @@ SERVICE="${ERICK_SERVICE:-erick}"
 HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:8091/api/health}"
 PY="$APP_DIR/.venv/bin/python"
 ENV_FILE="$APP_DIR/backend/.env"
+# Held during deploys and mode switches; the watchdog leaves the app alone while it is held.
+DEPLOY_LOCK="${DEPLOY_LOCK:-/tmp/erick-deploy.lock}"
 
 fail() { echo "ERROR: $*" >&2; exit 1; }
 

@@ -7,7 +7,7 @@ source "$(dirname "$(readlink -f "$0")")/common.sh"
 
 # Everything lives in main() so bash has read the whole script before git replaces this file.
 main() {
-  exec 9>"${XDG_RUNTIME_DIR:-/tmp}/erick-deploy.lock"
+  exec 9>"$DEPLOY_LOCK"
   flock -n 9 || fail "another deploy is already running"
   cd "$APP_DIR"
 

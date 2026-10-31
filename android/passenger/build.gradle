@@ -1,0 +1,4 @@
+// Android wrapper (Trusted Web Activity) for the Campus Rick passenger web app.
+plugins {
+    id "com.android.application" version "8.13.0" apply false
+}

@@ -40,6 +40,8 @@ restore() {
 }
 
 switch() {
+  exec 9>"$DEPLOY_LOCK"
+  flock -n 9 || fail "a deploy is running; try again in a minute"
   cp "$ENV_FILE" "$ENV_FILE.bak"
   if [[ $1 == production ]]; then
     set_key APP_ENV production

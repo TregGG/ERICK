@@ -610,3 +610,5 @@ async function openPlaces() {
 }
 
 boot();
+// Installable app (home screen / Android TWA); sw.js caches nothing.
+navigator.serviceWorker?.register('sw.js').catch(() => {});

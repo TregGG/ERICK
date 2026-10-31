@@ -1,0 +1,8 @@
+# Generated / downloaded; CI recreates these.
+node_modules/
+build/
+.gradle/
+local.properties
+# Signing keys never go in git (CI gets them from secrets).
+*.jks
+*.keystore

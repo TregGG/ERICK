@@ -37,6 +37,20 @@ export function toReading(position) {
   };
 }
 
+// Inside the Android driver app (Capacitor), positions come from a native foreground service,
+// so they keep flowing with the screen off. In a normal browser this is null.
+const nativeGeo = globalThis.Capacitor?.isNativePlatform?.() && globalThis.Capacitor.isPluginAvailable?.('BackgroundGeolocation')
+  ? globalThis.Capacitor.registerPlugin('BackgroundGeolocation') : null;
+
+export function usesNativeLocation() { return nativeGeo !== null; }
+
+function nativeToReading(loc) {
+  return toReading({
+    coords: { latitude: loc.latitude, longitude: loc.longitude, accuracy: loc.accuracy, heading: loc.bearing, speed: loc.speed },
+    timestamp: loc.time,
+  });
+}
+
 export class GeoWatcher {
   constructor({ onReading, onError }) {
     this.onReading = onReading;
@@ -46,6 +60,7 @@ export class GeoWatcher {
   get active() { return this.watchId !== null; }
   start() {
     if (this.active) return;
+    if (nativeGeo) { this.startNative(); return; }
     const reason = unsupportedReason();
     if (reason) { this.onError({ code: 'unsupported', message: reason }); return; }
     this.watchId = navigator.geolocation.watchPosition(
@@ -54,8 +69,29 @@ export class GeoWatcher {
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
     );
   }
+  startNative() {
+    this.watchId = 'native-pending';
+    nativeGeo.addWatcher({
+      backgroundTitle: 'Campus Rick: on duty',
+      backgroundMessage: 'Sharing your location for ride requests. Go off duty to stop.',
+      requestPermissions: true, stale: false, distanceFilter: 0,
+    }, (loc, err) => {
+      if (err) {
+        this.onError(err.code === 'NOT_AUTHORIZED' ? ERRORS[1] : { code: 'error', message: err.message });
+      } else if (loc) {
+        this.onReading(nativeToReading(loc));
+      }
+    }).then((id) => {
+      if (this.watchId === 'native-pending') this.watchId = id;
+      else nativeGeo.removeWatcher({ id }); // stopped before the watcher was ready
+    });
+  }
   stop() {
-    if (this.watchId !== null) navigator.geolocation.clearWatch(this.watchId);
+    if (nativeGeo) {
+      if (this.watchId && this.watchId !== 'native-pending') nativeGeo.removeWatcher({ id: this.watchId });
+    } else if (this.watchId !== null) {
+      navigator.geolocation.clearWatch(this.watchId);
+    }
     this.watchId = null;
   }
 }

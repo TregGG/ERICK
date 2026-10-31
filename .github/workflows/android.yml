@@ -1,0 +1,124 @@
+# Build the Android apps: passenger (Trusted Web Activity) and driver (Capacitor).
+# Both apps load the live website, so web changes need no new app build; this only runs when the
+# Android projects change. APKs (and Play Store AABs when signed) are attached to the run as artifacts,
+# and signed builds are also published on the Releases page as a beta (pre-release).
+# Signing: set ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and
+# ANDROID_KEY_PASSWORD secrets for release builds; without them, debug builds are produced.
+name: Android apps
+
+on:
+  push:
+    branches: [android, master]
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [passenger, driver]
+    env:
+      HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Node.js (driver only)
+        if: matrix.app == 'driver'
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install Capacitor and sync plugins
+        if: matrix.app == 'driver'
+        working-directory: android/driver
+        run: npm ci && npx cap sync android
+
+      - name: Signing key
+        if: env.HAS_KEY == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          # Public certificate fingerprint, needed for ANDROID_TWA_SHA256 on the server.
+          fp=$(keytool -list -v -keystore "$RUNNER_TEMP/release.jks" -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+               -alias "$ANDROID_KEY_ALIAS" | sed -n 's/^[[:space:]]*SHA256: //p')
+          echo "::notice::Signing certificate SHA-256: $fp"
+
+      - name: Build
+        working-directory: ${{ matrix.app == 'driver' && 'android/driver/android' || 'android/passenger' }}
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          if [ "$HAS_KEY" = true ]; then
+            ./gradlew --no-daemon assembleRelease bundleRelease
+          else
+            ./gradlew --no-daemon assembleDebug
+          fi
+
+      - name: Name the outputs
+        working-directory: ${{ matrix.app == 'driver' && 'android/driver/android' || 'android/passenger' }}/app/build/outputs
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          name="campusrick-${{ matrix.app }}-1.0.${{ github.run_number }}"
+          [ "$HAS_KEY" = true ] || name="$name-debug"
+          find apk -name '*.apk' -exec cp {} "$GITHUB_WORKSPACE/dist/$name.apk" \;
+          find . -path './bundle/*' -name '*.aab' -exec cp {} "$GITHUB_WORKSPACE/dist/$name.aab" \;
+          ls -l "$GITHUB_WORKSPACE/dist"
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: campusrick-${{ matrix.app }}-${{ github.run_number }}
+          path: dist/
+          if-no-files-found: error
+
+  # Publish signed builds on the Releases page as a pre-release ("beta"), one per workflow run.
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      GH_TOKEN: ${{ github.token }}
+      TAG: android-beta-${{ github.run_number }}
+    steps:
+      - name: Skip unsigned builds
+        if: env.HAS_KEY != 'true'
+        run: echo "::notice::No signing key secrets, so no release (debug builds are in the run's artifacts)."
+      - uses: actions/download-artifact@v5
+        if: env.HAS_KEY == 'true'
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create or update the beta release
+        if: env.HAS_KEY == 'true'
+        run: |
+          cat > notes.md <<EOF
+          Beta build ${{ github.run_number }} of the Campus Rick Android apps, from \`${GITHUB_REF_NAME}\` at ${GITHUB_SHA::7}.
+
+          - **campusrick-passenger-*.apk**: Campus Rick (passengers)
+          - **campusrick-driver-*.apk**: Rick Driver (drivers, with background location)
+
+          Install: download the APK on an Android phone, open it, and allow installing from that app when asked.
+          The \`.aab\` files are for uploading to the Google Play Console.
+          EOF
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" dist/* --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+              --title "Android beta ${{ github.run_number }}" --notes-file notes.md
+          fi

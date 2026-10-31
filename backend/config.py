@@ -61,6 +61,11 @@ class Settings(BaseSettings):
     DISPATCH_TICK_SECONDS: float = 1.0
     DISPATCH_ENABLED: bool = True
 
+    # Android passenger app (Trusted Web Activity). Served as /.well-known/assetlinks.json so Android
+    # opens the site full-screen. Fingerprints: SHA-256 of the app signing certificate(s), comma-separated.
+    ANDROID_TWA_PACKAGE: str = "in.ac.iitr.campusrick.passenger"
+    ANDROID_TWA_SHA256: str = ""
+
     model_config = SettingsConfigDict(env_file=(str(ENV_PATH),), env_file_encoding="utf-8", extra="ignore")
 
     @property

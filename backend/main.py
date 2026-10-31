@@ -111,3 +111,14 @@ for mount, folder in (("/passenger", "passenger-app"), ("/driver", "driver-app")
 @app.get("/", include_in_schema=False)
 async def landing():
     return FileResponse(REPO_DIR / "shared" / "index.html")
+
+
+@app.get("/.well-known/assetlinks.json", include_in_schema=False)
+async def android_asset_links():
+    """Digital Asset Links: lets the Android passenger app (TWA) open this site without a URL bar."""
+    fingerprints = [f.strip().upper() for f in settings.ANDROID_TWA_SHA256.split(",") if f.strip()]
+    if not fingerprints:
+        return []
+    return [{"relation": ["delegate_permission/common.handle_all_urls"],
+             "target": {"namespace": "android_app", "package_name": settings.ANDROID_TWA_PACKAGE,
+                        "sha256_cert_fingerprints": fingerprints}}]

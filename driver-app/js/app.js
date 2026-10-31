@@ -2,7 +2,7 @@ import { ApiClient } from '/shared/js/api.js';
 import { Realtime } from '/shared/js/realtime.js';
 import { showLogin, logout } from '/shared/js/auth.js';
 import { createMap, drawCampus, externalNavigationUrl, fitTo, icons } from '/shared/js/map.js';
-import { GeoWatcher, permissionState, toReading, unsupportedReason } from '/shared/js/geo.js';
+import { GeoWatcher, permissionState, toReading, unsupportedReason, usesNativeLocation } from '/shared/js/geo.js';
 import { themeToggle } from '/shared/js/theme.js';
 import {
   $, ago, busy, connectionPill, dateTime, distance, drawer, duration, html, modal, raw, rupees,
@@ -138,7 +138,8 @@ async function startGps() {
   if (watcher.active || S.sim.active) return;
   const reason = unsupportedReason();
   if (reason) { S.gps = { ...S.gps, status: 'error', message: reason }; render(); return; }
-  if (await permissionState() === 'denied') {
+  // In the Android app the native plugin asks for permission itself (see shared/js/geo.js).
+  if (!usesNativeLocation() && await permissionState() === 'denied') {
     S.gps = { ...S.gps, status: 'error', message: 'Location permission is blocked. Allow location for this site in browser settings, then reload.' };
     render();
     return;
@@ -431,7 +432,7 @@ function keepLocationFresh() {
   // A stationary phone may stop firing watchPosition; ask for a new real fix so the
   // server keeps a fresh position (we never re-stamp an old reading).
   const last = S.gps.reading ? new Date(S.gps.reading.timestamp).getTime() : 0;
-  if (watcher.active && !fixInFlight && Date.now() - last > REFRESH_FIX_MS) {
+  if (watcher.active && !usesNativeLocation() && !fixInFlight && Date.now() - last > REFRESH_FIX_MS) {
     fixInFlight = true;
     navigator.geolocation.getCurrentPosition(
       (pos) => { fixInFlight = false; onGpsReading(toReading(pos)); },
