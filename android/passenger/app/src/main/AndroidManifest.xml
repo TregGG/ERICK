@@ -10,7 +10,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Translucent.NoTitleBar">
+        android:theme="@android:style/Theme.Translucent.NoTitleBar"
+        android:manageSpaceActivity="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity">
 
         <meta-data android:name="asset_statements" android:resource="@string/asset_statements" />
 
@@ -35,6 +36,14 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="${hostName}" android:pathPrefix="/passenger" />
             </intent-filter>
+        </activity>
+
+        <!-- LauncherActivity enables this component at launch (the "Site settings" shortcut and
+             Settings > Apps > Manage storage). Without it, opening the app crashes in Chrome. -->
+        <activity
+            android:name="com.google.androidbrowserhelper.trusted.ManageDataLauncherActivity"
+            android:exported="false">
+            <meta-data android:name="android.support.customtabs.trusted.MANAGE_SPACE_URL" android:value="@string/launch_url" />
         </activity>
 
         <activity
