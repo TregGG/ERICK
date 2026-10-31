@@ -68,7 +68,7 @@ jobs:
             ./gradlew --no-daemon assembleDebug
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: campusrick-${{ matrix.app }}-${{ github.run_number }}
           path: |

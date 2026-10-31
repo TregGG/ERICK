@@ -331,6 +331,30 @@ restores the previous `backend/.env`.
 
 Production mode needs the real admin account from Part 8. Demo accounts cannot be created in production.
 
+## Part 14: Keep everything running (watchdog)
+
+One-time setup:
+
+```bash
+sudo /opt/erick/deploy/install-watchdog.sh
+```
+
+This does two things:
+
+- **Restart on crash:** systemd restarts PostgreSQL (`postgresql@16-main`), Caddy and the app (`erick`) 5 seconds
+  after they stop, and keeps trying for ever. Without this, only the app restarted itself.
+- **Watchdog every minute:** `deploy/watchdog.sh` (timer `erick-watchdog.timer`) starts any stopped service and
+  restarts the part that is stuck when a check fails twice in a row:
+  - the app does not answer `/api/health`: restart the app;
+  - the app cannot reach the database: restart PostgreSQL and the app;
+  - the ride dispatch loop has stopped: restart the app;
+  - `https://<HOSTNAME>` does not answer through Caddy: restart Caddy.
+
+  It does nothing while a deploy or `erick-mode` switch is running.
+
+See what it did: `journalctl -t erick-watchdog`. Check it is scheduled: `systemctl list-timers erick-watchdog.timer`.
+To turn it off: `sudo systemctl disable --now erick-watchdog.timer`.
+
 ---
 
 ## Troubleshooting
