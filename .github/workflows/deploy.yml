@@ -50,16 +50,19 @@ jobs:
           KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
           install -m 700 -d ~/.ssh
-          # Drop blank lines and stray spaces picked up when copying the key from a terminal.
-          printf '%s\n' "$SSH_KEY" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; /^$/d' > ~/.ssh/deploy_key
+          # Keep only the key block: drops blank lines, stray spaces and any terminal text copied
+          # before -----BEGIN or after -----END.
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; /^$/d' \
+            | sed 's/.*\(-----BEGIN OPENSSH PRIVATE KEY-----\)/\1/; s/\(-----END OPENSSH PRIVATE KEY-----\).*/\1/' \
+            | sed -n '/^-----BEGIN OPENSSH PRIVATE KEY-----$/,/^-----END OPENSSH PRIVATE KEY-----$/p' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           # Explain a bad DEPLOY_SSH_KEY secret without printing it (only its shape and public fingerprint).
           [ -n "$SSH_KEY" ] || { echo "::error::DEPLOY_SSH_KEY secret is empty or missing (check the name)"; exit 1; }
-          head -1 ~/.ssh/deploy_key | grep -qx -- '-----BEGIN OPENSSH PRIVATE KEY-----' ||
-            { echo "::error::DEPLOY_SSH_KEY does not start with the -----BEGIN OPENSSH PRIVATE KEY----- line ($(wc -l < ~/.ssh/deploy_key) lines)"; exit 1; }
+          [ -s ~/.ssh/deploy_key ] ||
+            { echo "::error::DEPLOY_SSH_KEY has no -----BEGIN OPENSSH PRIVATE KEY----- line. Re-paste it: wl-copy < ~/.ssh/erick_deploy"; exit 1; }
           grep -qx -- '-----END OPENSSH PRIVATE KEY-----' ~/.ssh/deploy_key ||
-            { echo "::error::DEPLOY_SSH_KEY has no -----END OPENSSH PRIVATE KEY----- line ($(wc -l < ~/.ssh/deploy_key) lines)"; exit 1; }
+            { echo "::error::DEPLOY_SSH_KEY has no -----END OPENSSH PRIVATE KEY----- line. Re-paste it: wl-copy < ~/.ssh/erick_deploy"; exit 1; }
           fp=$(ssh-keygen -lf ~/.ssh/deploy_key) ||
             { echo "::error::DEPLOY_SSH_KEY is not a valid key ($(wc -l < ~/.ssh/deploy_key) lines; expected 7)"; exit 1; }
           echo "::notice::Deploy key fingerprint: $fp"
