@@ -52,8 +52,16 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          # Public fingerprint only: compare with `ssh-keygen -lf ~/.ssh/erick_deploy.pub` if login fails.
-          ssh-keygen -lf ~/.ssh/deploy_key
+          # Explain a bad DEPLOY_SSH_KEY secret without printing it (only its shape and public fingerprint).
+          [ -n "$SSH_KEY" ] || { echo "::error::DEPLOY_SSH_KEY secret is empty or missing (check the name)"; exit 1; }
+          head -1 ~/.ssh/deploy_key | grep -qx -- '-----BEGIN OPENSSH PRIVATE KEY-----' ||
+            { echo "::error::DEPLOY_SSH_KEY does not start with the -----BEGIN OPENSSH PRIVATE KEY----- line ($(wc -l < ~/.ssh/deploy_key) lines)"; exit 1; }
+          grep -qx -- '-----END OPENSSH PRIVATE KEY-----' ~/.ssh/deploy_key ||
+            { echo "::error::DEPLOY_SSH_KEY has no -----END OPENSSH PRIVATE KEY----- line ($(wc -l < ~/.ssh/deploy_key) lines)"; exit 1; }
+          fp=$(ssh-keygen -lf ~/.ssh/deploy_key) ||
+            { echo "::error::DEPLOY_SSH_KEY is not a valid key ($(wc -l < ~/.ssh/deploy_key) lines; expected 7)"; exit 1; }
+          echo "::notice::Deploy key fingerprint: $fp"
+          [ -n "$KNOWN_HOSTS" ] || { echo "::error::DEPLOY_KNOWN_HOSTS secret is empty or missing"; exit 1; }
       - name: Deploy
         # The deploy key is restricted on the server to run deploy/deploy.sh only.
         run: ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes azureuser@${{ secrets.DEPLOY_HOST }} /opt/erick/deploy/deploy.sh
