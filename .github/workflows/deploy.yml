@@ -50,7 +50,9 @@ jobs:
           KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
           install -m 700 -d ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
+          # Drop blank lines and stray spaces picked up when copying the key from a terminal.
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//; /^$/d' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           # Explain a bad DEPLOY_SSH_KEY secret without printing it (only its shape and public fingerprint).
           [ -n "$SSH_KEY" ] || { echo "::error::DEPLOY_SSH_KEY secret is empty or missing (check the name)"; exit 1; }
