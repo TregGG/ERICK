@@ -26,8 +26,8 @@ jobs:
           --health-timeout 5s
           --health-retries 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: pip
@@ -52,6 +52,8 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key && chmod 600 ~/.ssh/deploy_key
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # Public fingerprint only: compare with `ssh-keygen -lf ~/.ssh/erick_deploy.pub` if login fails.
+          ssh-keygen -lf ~/.ssh/deploy_key
       - name: Deploy
         # The deploy key is restricted on the server to run deploy/deploy.sh only.
-        run: ssh -i ~/.ssh/deploy_key -o BatchMode=yes azureuser@${{ secrets.DEPLOY_HOST }} /opt/erick/deploy/deploy.sh
+        run: ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes azureuser@${{ secrets.DEPLOY_HOST }} /opt/erick/deploy/deploy.sh
