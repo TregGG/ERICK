@@ -1,0 +1,77 @@
+# Build the Android apps: passenger (Trusted Web Activity) and driver (Capacitor).
+# Both apps load the live website, so web changes need no new app build; this only runs when the
+# Android projects change. APKs (and Play Store AABs when signed) are attached to the run as artifacts.
+# Signing: set ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and
+# ANDROID_KEY_PASSWORD secrets for release builds; without them, debug builds are produced.
+name: Android apps
+
+on:
+  push:
+    branches: [android, master]
+    paths:
+      - "android/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [passenger, driver]
+    env:
+      HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Node.js (driver only)
+        if: matrix.app == 'driver'
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - name: Install Capacitor and sync plugins
+        if: matrix.app == 'driver'
+        working-directory: android/driver
+        run: npm ci && npx cap sync android
+
+      - name: Signing key
+        if: env.HAS_KEY == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+          # Public certificate fingerprint, needed for ANDROID_TWA_SHA256 on the server.
+          fp=$(keytool -list -v -keystore "$RUNNER_TEMP/release.jks" -storepass "$ANDROID_KEYSTORE_PASSWORD" \
+               -alias "$ANDROID_KEY_ALIAS" | sed -n 's/^[[:space:]]*SHA256: //p')
+          echo "::notice::Signing certificate SHA-256: $fp"
+
+      - name: Build
+        working-directory: ${{ matrix.app == 'driver' && 'android/driver/android' || 'android/passenger' }}
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          if [ "$HAS_KEY" = true ]; then
+            ./gradlew --no-daemon assembleRelease bundleRelease
+          else
+            ./gradlew --no-daemon assembleDebug
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: campusrick-${{ matrix.app }}-${{ github.run_number }}
+          path: |
+            ${{ matrix.app == 'driver' && 'android/driver/android' || 'android/passenger' }}/app/build/outputs/apk/**/*.apk
+            ${{ matrix.app == 'driver' && 'android/driver/android' || 'android/passenger' }}/app/build/outputs/bundle/**/*.aab
+          if-no-files-found: error
