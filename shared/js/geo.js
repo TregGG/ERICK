@@ -39,8 +39,19 @@ export function toReading(position) {
 
 // Inside the Android driver app (Capacitor), positions come from a native foreground service,
 // so they keep flowing with the screen off. In a normal browser this is null.
-const nativeGeo = globalThis.Capacitor?.isNativePlatform?.() && globalThis.Capacitor.isPluginAvailable?.('BackgroundGeolocation')
-  ? globalThis.Capacitor.registerPlugin('BackgroundGeolocation') : null;
+// The site does not load @capacitor/core, so Capacitor.registerPlugin does not exist; the native
+// bridge exposes the plugin directly as Capacitor.Plugins.<Name> instead.
+function findNativeGeo() {
+  try {
+    const cap = globalThis.Capacitor;
+    if (!cap?.isNativePlatform?.() || !cap.isPluginAvailable?.('BackgroundGeolocation')) return null;
+    return cap.Plugins?.BackgroundGeolocation
+      || (typeof cap.registerPlugin === 'function' ? cap.registerPlugin('BackgroundGeolocation') : null);
+  } catch {
+    return null; // never let the native bridge break page startup; fall back to browser geolocation
+  }
+}
+const nativeGeo = findNativeGeo();
 
 export function usesNativeLocation() { return nativeGeo !== null; }
 
@@ -71,7 +82,8 @@ export class GeoWatcher {
   }
   startNative() {
     this.watchId = 'native-pending';
-    nativeGeo.addWatcher({
+    // The bridge's addWatcher returns the watcher id directly (registerPlugin's returns a Promise).
+    Promise.resolve(nativeGeo.addWatcher({
       backgroundTitle: 'Campus Rick: on duty',
       backgroundMessage: 'Sharing your location for ride requests. Go off duty to stop.',
       requestPermissions: true, stale: false, distanceFilter: 0,
@@ -81,7 +93,7 @@ export class GeoWatcher {
       } else if (loc) {
         this.onReading(nativeToReading(loc));
       }
-    }).then((id) => {
+    })).then((id) => {
       if (this.watchId === 'native-pending') this.watchId = id;
       else nativeGeo.removeWatcher({ id }); // stopped before the watcher was ready
     });
