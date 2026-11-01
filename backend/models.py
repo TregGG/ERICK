@@ -176,6 +176,8 @@ class Ride(Base):
     boost_paise: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     boost_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     cancellation_fee_paise: Mapped[Optional[int]] = mapped_column(Integer)
+    # Four digits the passenger tells the driver at pickup; the trip can only start with it.
+    start_pin: Mapped[Optional[str]] = mapped_column(String(4))
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="INR")
 
     idempotency_key: Mapped[Optional[str]] = mapped_column(String(64))

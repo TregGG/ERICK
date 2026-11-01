@@ -14,6 +14,7 @@ const SETTING_LABELS = {
   cancel_fee_percent: ['Cancellation fee (%)', 'Share of the fare charged when the passenger cancels while the driver is approaching.'],
   cancel_fee_min_paise: ['Minimum cancellation fee (paise)', 'The fee is never lower than this (capped at the fare).'],
   cancel_window_s: ['Approach window (s)', 'Cancellation is free if the driver has not moved closer to the pickup in this time.'],
+  demand_window_min: ['Demand map window (min)', 'Drivers see where passengers booked within this many recent minutes.'],
   approach_min_m: ['Approach threshold (m)', 'Net metres closer within the window that count as approaching (filters GPS jitter).'],
   driver_share_percent: ['Driver share (%)', 'Share of each fare credited to the driver in earnings.'],
   dispatch_radius_m: ['Dispatch radius (m)', 'Maximum straight-line distance from a driver to the pickup.'],

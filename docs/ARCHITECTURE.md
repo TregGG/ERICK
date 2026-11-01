@@ -69,6 +69,18 @@ a higher fee is refused with `fee_changed`, never charged silently. The fee is a
 `payments` row (`kind = 'cancellation_fee'`), and the passenger can't book again until an admin marks it
 PAID (credited to that driver's earnings) or WAIVED. Admin cancellations are always free.
 
+## Start PIN
+
+Each ride gets a random four-digit `start_pin`. Only the passenger's ride view includes it, and only while
+the driver is on the way or waiting. Starting the trip from ARRIVED requires the PIN (constant-time compare,
+5 attempts per ride per 5 min), so the driver picks up the right passenger.
+
+## Demand map
+
+`GET /api/driver/demand` counts pickups of rides requested in the last `demand_window_min` minutes in a
+~150 m grid, with how many are still waiting and how many found no driver. Drivers who are on duty with no
+offer or trip see it as shaded circles. Only cell counts are returned, never individual passengers.
+
 Ranking uses straight-line distance to the pickup (cheap and adequate at campus scale). Ranking by
 road ETA would need an OSRM *table* call per dispatch and a self-hosted OSRM.
 

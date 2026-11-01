@@ -4,7 +4,9 @@ Every transition is a compare-and-set UPDATE on (status, version), so two
 concurrent requests can never both succeed, and database partial unique indexes
 guarantee at most one active ride per passenger and per driver.
 """
+import hmac
 import re
+import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -101,6 +103,7 @@ def _base_view(ride: Ride) -> dict:
             "passengers": ride.passenger_count, "boost_count": ride.boost_count,
         },
         "cancellation_fee": money(ride.cancellation_fee_paise) if ride.cancellation_fee_paise else None,
+        "requires_pin": ride.start_pin is not None,
         "created_at": iso(ride.created_at),
         "search_expires_at": iso(ride.search_expires_at),
         "accepted_at": iso(ride.accepted_at),
@@ -129,6 +132,8 @@ async def ride_view(db: AsyncSession, ride: Ride, viewer: str, viewer_id=None) -
         }
         if assigned:
             view["driver_location"] = location_view(await db.get(DriverLocation, ride.driver_id))
+    if viewer == "passenger" and ride.status in (RideStatus.ACCEPTED.value, RideStatus.ARRIVED.value):
+        view["start_pin"] = ride.start_pin  # only the passenger ever sees the PIN, and only until boarding
     if viewer in ("driver", "admin"):
         passenger = await db.get(User, ride.passenger_id)
         first_name = (passenger.name or "Passenger").split()[0]
@@ -296,7 +301,7 @@ async def create_ride(db: AsyncSession, passenger: User, pickup: dict, dropoff: 
         route_distance_m=route["distance_m"], route_duration_s=route["duration_s"], route_source=route["source"],
         fare_paise=fare_total(ops.fare_paise, boost_paise, passenger_count), base_fare_paise=ops.fare_paise,
         boost_paise=boost_paise, passenger_count=passenger_count, boost_count=1 if boost_paise else 0,
-        idempotency_key=idempotency_key, offer_count=0,
+        idempotency_key=idempotency_key, offer_count=0, start_pin=f"{secrets.randbelow(10000):04d}",
         search_expires_at=now + timedelta(seconds=ops.search_timeout_s), created_at=now, updated_at=now,
     )
     db.add(ride)
@@ -513,8 +518,12 @@ async def driver_arrived(db: AsyncSession, driver: User, ride: Ride) -> Ride:
     return ride
 
 
-async def driver_start(db: AsyncSession, driver: User, ride: Ride) -> Ride:
+async def driver_start(db: AsyncSession, driver: User, ride: Ride, pin: Optional[str] = None) -> Ride:
     _assigned_to(ride, driver)
+    if ride.status == RideStatus.ARRIVED.value and ride.start_pin is not None \
+            and not hmac.compare_digest((pin or "").strip(), ride.start_pin):
+        raise ServiceError(422, "That PIN doesn't match. Ask the passenger for the 4-digit PIN shown in their app.",
+                           code="wrong_pin")
     await transition(db, ride, RideStatus.IN_PROGRESS, "driver", driver.id, started_at=utcnow())
     await publish(db, ride)
     return ride

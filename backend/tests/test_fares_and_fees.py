@@ -245,3 +245,53 @@ async def test_released_ride_forgets_the_previous_drivers_approach(api):
         left = (await db.execute(select(func.count(RideApproachSample.id)).where(
             RideApproachSample.ride_id == uuid.UUID(ride["id"])))).scalar_one()
     assert left == 0
+
+
+# --------------------------------------------------------------------------- start PIN
+
+async def test_trip_starts_only_with_the_passengers_pin(api):
+    driver, p, ride = await assigned_ride(api)
+    view = (await api.c.get(f"/api/passenger/rides/{ride['id']}", headers=p["h"])).json()
+    pin = view["start_pin"]
+    assert len(pin) == 4 and pin.isdigit()
+    assert "start_pin" not in (await api.driver_state(driver))["active_ride"]  # the driver never sees it
+
+    await api.locate(driver, LIBRARY)
+    await api.act(driver, ride["id"], "arrived")
+    wrong = "0000" if pin != "0000" else "1111"
+    r = await api.act(driver, ride["id"], "start", {"pin": wrong}, expect=422)
+    assert r["code"] == "wrong_pin"
+    assert (await api.act(driver, ride["id"], "start", {"pin": pin}))["status"] == "IN_PROGRESS"
+    view = (await api.c.get(f"/api/passenger/rides/{ride['id']}", headers=p["h"])).json()
+    assert "start_pin" not in view  # no longer shown once on board
+
+
+async def test_pin_guessing_is_rate_limited(api):
+    driver, _, ride = await assigned_ride(api)
+    await api.locate(driver, LIBRARY)
+    await api.act(driver, ride["id"], "arrived")
+    codes = []
+    for guess in range(6):
+        r = await api.c.post(f"/api/driver/rides/{ride['id']}/start", headers=driver["h"], json={"pin": f"{guess:04d}x"})
+        codes.append(r.status_code)
+    assert codes[-1] == 429
+
+
+# --------------------------------------------------------------------------- demand map
+
+async def test_demand_map_groups_recent_pickups_into_cells(api):
+    driver = await api.driver(at=None, online=False)
+    for _ in range(3):
+        p = await api.passenger()
+        await request(api, p)  # all at the Library, still searching (no driver online)
+    data = (await api.c.get("/api/driver/demand", headers=driver["h"])).json()
+    assert data["window_min"] == 60 and data["cell_m"] == 150
+    top = data["cells"][0]
+    assert top["requests"] == 3 and top["waiting"] == 3
+    assert abs(top["lat"] - LIBRARY[0]) < 0.002 and abs(top["lng"] - LIBRARY[1]) < 0.002
+    assert "passenger" not in str(data)
+
+
+async def test_demand_map_is_for_drivers_only(api):
+    p = await api.passenger()
+    assert (await api.c.get("/api/driver/demand", headers=p["h"])).status_code == 403

@@ -12,8 +12,8 @@ from ..config import settings
 from ..db import get_db, utcnow
 from ..models import DriverLocation, DriverProfile, Payment, Ride, RideOffer, Vehicle
 from ..realtime import commit_and_publish, queue_event
-from ..security import Principal, require_driver
-from ..services import dispatch, locations
+from ..security import Principal, rate_limiter, require_driver
+from ..services import demand, dispatch, locations
 from ..services import rides as ride_service
 from ..services.ops_settings import get_ops
 from ..states import OfferStatus, RideStatus
@@ -40,6 +40,10 @@ class CompleteIn(BaseModel):
 
 class CancelIn(BaseModel):
     reason: Optional[str] = Field(default=None, max_length=200)
+
+
+class StartIn(BaseModel):
+    pin: Optional[str] = Field(default=None, max_length=8)
 
 
 async def driver_state(db: AsyncSession, principal: Principal) -> dict:
@@ -176,9 +180,11 @@ async def arrived(ride_id: str, principal: Principal = Depends(require_driver), 
 
 
 @router.post("/rides/{ride_id}/start")
-async def start(ride_id: str, principal: Principal = Depends(require_driver), db: AsyncSession = Depends(get_db)):
+async def start(ride_id: str, body: StartIn = StartIn(), principal: Principal = Depends(require_driver),
+                db: AsyncSession = Depends(get_db)):
+    rate_limiter.check("start_pin", ride_id, limit=5, window_s=300)  # 10,000 PINs: no guessing
     ride = await _ride(db, ride_id)
-    await ride_service.driver_start(db, principal.user, ride)
+    await ride_service.driver_start(db, principal.user, ride, body.pin)
     await commit_and_publish(db)
     return await ride_service.ride_view(db, ride, "driver", principal.id)
 
@@ -208,6 +214,11 @@ async def cancel(ride_id: str, body: CancelIn, principal: Principal = Depends(re
     if ride.status == RideStatus.REQUESTED.value:
         await dispatch.dispatch_ride(ride.id)
     return {"ok": True, "status": ride.status}
+
+
+@router.get("/demand")
+async def demand_map(principal: Principal = Depends(require_driver), db: AsyncSession = Depends(get_db)):
+    return await demand.demand_cells(db, await get_ops(db))
 
 
 @router.get("/rides")

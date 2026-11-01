@@ -38,8 +38,11 @@ class OpsSettings:
     cancel_fee_min_paise: int = 1000
     cancel_window_s: int = 30
     approach_min_m: int = 20
+    # Drivers' demand map counts ride requests from this many recent minutes.
+    demand_window_min: int = 60
 
     LIMITS = {
+        "demand_window_min": (10, 240),
         "max_boost_paise": (0, 50000),
         "max_boosts_per_ride": (0, 10),
         "cancel_fee_percent": (0, 100),

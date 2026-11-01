@@ -182,9 +182,17 @@ class Api:
         return r.json()
 
     async def act(self, d: dict, ride_id: str, action: str, body=None, expect=200):
+        if action == "start" and body is None:
+            body = {"pin": await ride_pin(ride_id)}  # what the passenger would read out at pickup
         r = await self.c.post(f"/api/driver/rides/{ride_id}/{action}", headers=d["h"], json=body or {})
         assert r.status_code == expect, r.text
         return r.json()
+
+
+async def ride_pin(ride_id: str):
+    from backend.models import Ride
+    async with SessionLocal() as db:
+        return (await db.get(Ride, __import__("uuid").UUID(ride_id))).start_pin
 
 
 @pytest.fixture

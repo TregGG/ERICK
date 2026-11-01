@@ -302,7 +302,9 @@ function activeView(r) {
   else eta = '<div class="skeleton" style="height:34px;width:50%;margin-bottom:12px"></div>';
   return html`
     <div class="status-head"><h2>${titles[r.status]}</h2></div>
-    ${raw(eta)}${raw(driverCard(r))}<hr class="divider">${raw(trip(r))}
+    ${raw(eta)}${r.start_pin ? raw(html`<div class="start-pin"><span class="small muted">Tell your driver this PIN to start the trip</span>
+      <span class="pin-digits num" aria-label="PIN ${r.start_pin.split('').join(' ')}">${r.start_pin}</span></div>`) : ''}
+    ${raw(driverCard(r))}<hr class="divider">${raw(trip(r))}
     ${r.status !== 'IN_PROGRESS' ? raw('<hr class="divider"><button class="btn btn-ghost-danger btn-block" id="cancel-btn">Cancel ride</button>') : ''}`;
 }
 

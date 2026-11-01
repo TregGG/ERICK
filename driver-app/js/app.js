@@ -92,6 +92,7 @@ async function start(user) {
   await refresh();
   setInterval(tick, 1000);
   setInterval(() => { if (rt.status !== 'online') refresh(true); }, 5000); // REST fallback while the socket is down
+  setInterval(refreshDemand, 30000);
 }
 
 async function refresh(quiet = false) {
@@ -108,6 +109,7 @@ function applyState(st) {
   if (before?.active_ride?.id !== st.active_ride?.id) { S.route = null; S.routeAt = 0; }
   render();
   refreshRoute();
+  if (st.profile.is_online && !before?.profile.is_online) refreshDemand();
 }
 
 function onRideUpdated(ride) {
@@ -345,8 +347,17 @@ function idleView() {
       ${online ? 'Go off duty' : 'Go on duty'}</button>
     <div class="gps-line" data-gps></div>
     ${online ? raw(html`<div class="empty" style="padding:16px 8px"><div class="icon">\u{1F4E1}</div>
-      <strong>Waiting for ride requests</strong><br><span class="small">Offers appear here automatically. Keep this screen open while on duty.</span></div>`)
+      <strong>Waiting for ride requests</strong><br><span class="small">Offers appear here automatically. Keep this screen open while on duty.</span></div>
+      ${raw(demandSummary())}`)
       : raw(html`<p class="muted small" style="text-align:center">Going on duty shares your live location with the dispatch system until you go off duty.</p>`)}`;
+}
+
+function demandSummary() {
+  const cells = S.demand?.cells || [];
+  if (!cells.length) return html`<p class="small muted" style="text-align:center;margin:0">No ride requests on campus in the last ${S.demand?.window_min || 60} min.</p>`;
+  const waiting = cells.reduce((n, c) => n + c.waiting, 0);
+  return html`<p class="small" style="text-align:center;margin:0">${waiting ? raw(html`<span class="badge badge-warn">${waiting} waiting now</span> `) : ''}
+    Shaded areas on the map show where passengers booked in the last ${S.demand.window_min} min. Darker = busier.</p>`;
 }
 
 function partySize(n = 1) {
@@ -536,6 +547,12 @@ async function tripStep(button) {
   const r = S.st.active_ride;
   const step = button.dataset.step;
   let body = {};
+  if (step === 'start' && r.requires_pin) {
+    const pin = await modal({ title: 'Enter the passenger’s PIN', body: 'Ask the passenger for the 4-digit PIN shown in their app. It confirms you picked up the right person.',
+      confirmText: 'Start trip', cancelText: 'Back', input: { label: 'PIN', placeholder: '1234', inputmode: 'numeric', maxlength: 4 } });
+    if (pin === null) return;
+    body = { pin: pin.trim() };
+  }
   if (step === 'complete') {
     const choice = await modal({ title: 'Complete trip', body: html`Collect <strong>${r.fare.display}</strong> in cash from the passenger.`,
       confirmText: 'Cash received — complete', cancelText: 'Not yet' });
@@ -570,8 +587,28 @@ function drawMe() {
   if (p && p.accuracy_m && S.map) S.layers.acc = L.circle([p.lat, p.lng], { radius: p.accuracy_m, color: '#1565c0', weight: 1, fillOpacity: 0.08, interactive: false }).addTo(S.map);
 }
 
+async function refreshDemand() {
+  if (!S.st?.profile.is_online || S.st.active_ride || S.st.offer) return;
+  try { S.demand = await api.get('/api/driver/demand'); } catch { return; } // keep the last map on a network blip
+  if (!S.st.active_ride && !S.st.offer) render();
+}
+
+function drawDemand() {
+  S.layers.demand?.remove();
+  delete S.layers.demand;
+  const cells = S.demand?.cells || [];
+  if (!S.st.profile.is_online || S.st.active_ride || S.st.offer || !cells.length) return;
+  const busiest = Math.max(...cells.map((c) => c.requests));
+  S.layers.demand = L.layerGroup(cells.map((c) => L.circle([c.lat, c.lng], {
+    radius: S.demand.cell_m * 0.6, stroke: c.waiting > 0, color: '#e65100', weight: 2,
+    fillColor: c.waiting ? '#e65100' : '#f9a825', fillOpacity: 0.15 + 0.4 * (c.requests / busiest),
+  }).bindTooltip(`${c.waiting ? `${c.waiting} waiting now · ` : ''}${c.requests} request${c.requests > 1 ? 's' : ''} in ${S.demand.window_min} min`
+    + `${c.missed ? ` · ${c.missed} found no driver` : ''}`))).addTo(S.map);
+}
+
 function drawLayers() {
   if (!S.map || !S.st) return;
+  drawDemand();
   drawMe();
   const r = S.st.active_ride;
   const o = S.st.offer;
