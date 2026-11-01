@@ -14,4 +14,4 @@ Then open <http://127.0.0.1:8091/passenger/>, <http://127.0.0.1:8091/driver/> an
 * [docs/AUDIT.md](docs/AUDIT.md) — what the repository looked like before this version, and why things changed
 * [docs/STATUS.md](docs/STATUS.md) — implementation checklist
 
-Map data © OpenStreetMap contributors (ODbL). Campus places are OSM features, not official stops.
+Map data © OpenStreetMap contributors (ODbL). Campus places are OSM features, not official stops. 
