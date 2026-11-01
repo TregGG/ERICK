@@ -325,3 +325,29 @@ async def test_cash_pending_can_be_collected_later(api):
     assert (await api.act(driver, ride["id"], "collect-cash"))["status"] == "PAID"
     async with SessionLocal() as db:
         assert (await db.execute(select(func.count(Payment.id)))).scalar_one() == 1
+
+
+async def test_passenger_map_shows_all_online_rickshaws_free_and_busy(api):
+    busy = await api.driver(at=HOSPITAL, name="Busy")
+    ride = await api.request_ride(await api.passenger(), pickup=HOSPITAL)
+    await api.act(busy, ride["id"], "accept")
+    free = await api.driver(at=LIBRARY, name="Free")
+    await api.driver(at=KASTURBA_BHAWAN, online=False, name="Offline")
+
+    p = await api.passenger()
+    # Without a pickup: every online rickshaw on campus, free ones first.
+    r = await api.c.get("/api/passenger/nearby-drivers", headers=p["h"])
+    assert r.status_code == 200, r.text
+    nearby = r.json()
+    assert (nearby["online"], nearby["available"], nearby["count"]) == (2, 1, 1)
+    assert [d["busy"] for d in nearby["drivers"]] == [False, True]
+    assert all(d["distance_m"] is None for d in nearby["drivers"])
+    # Positions stay approximate (~100 m) so passengers can't track an individual driver.
+    assert nearby["drivers"][0]["lat"] == round(LIBRARY[0], 3)
+
+    # With a pickup: count is the free rickshaws that could take the ride, and distances are filled in.
+    nearby = (await api.c.get("/api/passenger/nearby-drivers", params={"lat": LIBRARY[0], "lng": LIBRARY[1]},
+                              headers=p["h"])).json()
+    assert nearby["count"] == 1 and nearby["online"] == 2
+    assert nearby["drivers"][0]["busy"] is False and nearby["drivers"][0]["distance_m"] < 150
+    assert free  # the free driver is the one listed first

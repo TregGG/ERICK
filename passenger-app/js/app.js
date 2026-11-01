@@ -94,7 +94,8 @@ async function start(user) {
   } catch (err) { showError(err); render(); }
   api.get('/api/passenger/places').then((p) => { S.places = p; render(); }).catch(() => {});
   setInterval(tick, 1000);
-  setInterval(refreshNearby, 15000);
+  refreshNearby();
+  setInterval(refreshNearby, 10000);
 }
 
 // Temporary REST fallback while the WebSocket is down.
@@ -221,9 +222,14 @@ function bookingView() {
         <span class="small muted">${p.approximate ? 'Approximate straight-line estimate (road routing unavailable)' : 'Road route estimate'}</span>
       </div>` : '<div class="skeleton" style="height:62px;margin-bottom:12px"></div>';
   }
-  const nearby = S.nearby == null ? '' : S.nearby.count > 0
-    ? html`<p class="small" style="margin:0 0 10px"><span class="badge badge-ok">${S.nearby.count} nearby</span> rickshaw${S.nearby.count === 1 ? '' : 's'} online near your pickup</p>`
-    : html`<div class="banner banner-warn small" style="margin-bottom:10px">No rickshaws are online near this pickup right now. You can still request; we will keep looking for a few minutes.</div>`;
+  const n = S.nearby;
+  const nearby = n == null ? '' : !S.pickup
+    ? (n.online > 0
+      ? html`<p class="small" style="margin:0 0 10px"><span class="badge badge-ok">${n.available} free</span> ${n.online} rickshaw${n.online === 1 ? '' : 's'} online on campus</p>`
+      : html`<p class="small muted" style="margin:0 0 10px">No rickshaws are online right now.</p>`)
+    : n.count > 0
+      ? html`<p class="small" style="margin:0 0 10px"><span class="badge badge-ok">${n.count} nearby</span> rickshaw${n.count === 1 ? '' : 's'} free near your pickup</p>`
+      : html`<div class="banner banner-warn small" style="margin-bottom:10px">No free rickshaws near this pickup right now. You can still request; we will keep looking for a few minutes.</div>`;
   return html`
     <h2>Where to?</h2>
     <div class="loc-fields">${raw(locField('pickup', 'Pickup', S.pickup))}${raw(locField('dropoff', 'Drop-off', S.dropoff))}</div>
@@ -441,9 +447,9 @@ async function loadPreview() {
 }
 
 async function refreshNearby() {
-  if (!S.user || S.ride || !S.pickup) return;
+  if (!S.user || S.ride) return;
   try {
-    S.nearby = await api.get(`/api/passenger/nearby-drivers?lat=${S.pickup.lat}&lng=${S.pickup.lng}`);
+    S.nearby = await api.get(S.pickup ? `/api/passenger/nearby-drivers?lat=${S.pickup.lat}&lng=${S.pickup.lng}` : '/api/passenger/nearby-drivers');
     if (!S.ride) { render(); }
   } catch { S.nearby = null; }
 }
@@ -550,10 +556,13 @@ function drawRideLayers() {
   } else setMarker('driver', null);
   if (assigned && S.driverRoute) setLine('trip', S.driverRoute.geometry, { color: '#1565c0', weight: 5, opacity: 0.85, dashArray: S.driverRoute.approximate ? '8 8' : null });
   else if (r && !assigned) setLine('trip', null);
-  // Available drivers (approximate positions) only while booking.
+  // Online rickshaws (approximate positions) while booking: free ones highlighted, busy ones greyed out.
   if (S.layers.available) { S.layers.available.remove(); delete S.layers.available; }
   if (!r && S.nearby?.drivers?.length) {
-    S.layers.available = L.layerGroup(S.nearby.drivers.map((d) => L.marker([d.lat, d.lng], { icon: S.I.available, interactive: false, keyboard: false }))).addTo(S.map);
+    S.layers.available = L.layerGroup(S.nearby.drivers.map((d) => L.marker([d.lat, d.lng], {
+      icon: d.busy ? S.I.rickshawBusy : S.I.rickshaw, title: d.busy ? 'Busy rickshaw' : 'Free rickshaw',
+      interactive: false, keyboard: false, zIndexOffset: d.busy ? -100 : 0,
+    }))).addTo(S.map);
   }
 }
 

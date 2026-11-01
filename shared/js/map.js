@@ -7,6 +7,9 @@ export const icons = () => ({
   offer: L.divIcon({ className: '', html: '<div class="pin pin-offer"></div>', iconSize: [30, 30], iconAnchor: [15, 30] }),
   me: L.divIcon({ className: '', html: '<div class="me-dot"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }),
   available: L.divIcon({ className: '', html: '<div class="available-dot"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }),
+  // Online rickshaws on the passenger map: free ones in the brand colour, busy ones greyed out.
+  rickshaw: L.divIcon({ className: '', html: '<div class="rickshaw-marker">&#x1F6FA;</div>', iconSize: [28, 28], iconAnchor: [14, 14] }),
+  rickshawBusy: L.divIcon({ className: '', html: '<div class="rickshaw-marker busy">&#x1F6FA;</div>', iconSize: [28, 28], iconAnchor: [14, 14] }),
   vehicle: (state = '') => L.divIcon({ className: '', html: `<div class="vehicle-marker ${state}">&#x1F6FA;</div>`, iconSize: [38, 38], iconAnchor: [19, 19] }),
 });
 

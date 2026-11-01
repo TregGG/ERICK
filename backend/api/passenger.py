@@ -14,7 +14,7 @@ from ..realtime import commit_and_publish
 from ..security import Principal, rate_limiter, require_passenger
 from ..services import dispatch
 from ..services import rides as ride_service
-from ..services.geo import get_campus
+from ..services.geo import get_campus, haversine_m
 from ..services.ops_settings import get_ops
 
 router = APIRouter(prefix="/api/passenger", tags=["passenger"])
@@ -139,18 +139,38 @@ async def boost(ride_id: str, body: BoostIn, principal: Principal = Depends(requ
 
 
 @router.get("/nearby-drivers")
-async def nearby_drivers(lat: float = Query(ge=-90, le=90), lng: float = Query(ge=-180, le=180),
+async def nearby_drivers(lat: Optional[float] = Query(default=None, ge=-90, le=90),
+                         lng: Optional[float] = Query(default=None, ge=-180, le=180),
                          principal: Principal = Depends(require_passenger), db: AsyncSession = Depends(get_db)):
+    """Every online rickshaw on campus for the passenger map, free or busy.
+
+    With a pickup (lat/lng), `count` is the number of free rickshaws that could be offered this ride and
+    each driver gets a distance; without one, `count` is all free rickshaws on campus.
+    """
     ops = await get_ops(db)
-    candidates = await dispatch.eligible_drivers(db, lat, lng, ops, limit=25)
+    has_pickup = lat is not None and lng is not None
+    rows = await dispatch.online_drivers(db, ops)
+    if has_pickup:
+        count = len(await dispatch.eligible_drivers(db, lat, lng, ops, limit=25))
+    else:
+        count = sum(1 for r in rows if not r.busy)
     now = utcnow()
+    drivers = []
+    for r in rows:
+        drivers.append({
+            # Positions are rounded to ~100 m so passengers see availability without tracking individual drivers.
+            "lat": round(r.lat, 3), "lng": round(r.lng, 3), "busy": bool(r.busy),
+            "distance_m": int(haversine_m(lat, lng, r.lat, r.lng)) if has_pickup else None,
+            "age_s": int((now - r.recorded_at).total_seconds()),
+        })
+    drivers.sort(key=lambda d: (d["busy"], d["distance_m"] or 0))
     return {
-        "count": len(candidates),
+        "count": count,
+        "online": len(drivers),
+        "available": sum(1 for d in drivers if not d["busy"]),
         "radius_m": ops.dispatch_radius_m,
-        # Positions are rounded to ~100 m so passengers see availability without tracking individual drivers.
         "approximate_positions": True,
-        "drivers": [{"lat": round(c.lat, 3), "lng": round(c.lng, 3), "distance_m": int(c.distance_m),
-                     "age_s": int((now - c.recorded_at).total_seconds())} for c in candidates],
+        "drivers": drivers,
     }
 
 

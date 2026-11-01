@@ -251,6 +251,9 @@ a { color: var(--accent); }
   font-size: 19px; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
 .vehicle-marker.stale { background: #7b8a83; }
 .vehicle-marker.sim { background: var(--sim); }
+.rickshaw-marker { width: 28px; height: 28px; border-radius: 50%; background: #2e7d32; display: grid; place-items: center;
+  font-size: 15px; border: 2px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,.35); }
+.rickshaw-marker.busy { background: #7b8a83; opacity: .6; filter: grayscale(1); }
 .available-dot { width: 14px; height: 14px; border-radius: 50%; background: #1565c0; opacity: .75; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
 .me-dot { width: 18px; height: 18px; border-radius: 50%; background: #1a73e8; border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(26,115,232,.35); }
 .landmark-dot { width: 10px; height: 10px; border-radius: 50%; background: #fff; border: 2px solid #4b5b53; }

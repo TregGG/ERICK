@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import List, Optional
 
-from sqlalchemy import and_, exists, select, text
+from sqlalchemy import and_, exists, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -83,6 +83,35 @@ async def eligible_drivers(db: AsyncSession, lat: float, lng: float, ops: OpsSet
             candidates.append(Candidate(row.driver_id, distance, row.lat, row.lng, row.recorded_at))
     candidates.sort(key=lambda c: c.distance_m)
     return candidates[:limit]
+
+
+async def online_drivers(db: AsyncSession, ops: OpsSettings, limit: int = 60) -> list:
+    """Every online driver on campus with a fresh location, flagged busy if on a trip or reviewing an offer.
+
+    Used for the passenger map; unlike eligible_drivers it ignores distance and capacity.
+    """
+    fresh_after = utcnow() - timedelta(seconds=ops.location_stale_s)
+    busy = or_(
+        exists().where(and_(Ride.driver_id == DriverLocation.driver_id, Ride.status.in_(values(DRIVER_ASSIGNED)))),
+        exists().where(and_(RideOffer.driver_id == DriverLocation.driver_id, RideOffer.status == OfferStatus.PENDING.value)),
+    )
+    conditions = [
+        DriverProfile.is_online.is_(True),
+        User.status == "active",
+        DriverLocation.inside_campus.is_(True),
+        DriverLocation.received_at >= fresh_after,
+    ]
+    if ops.require_driver_verification:
+        conditions.append(DriverProfile.verification_status == "approved")
+    rows = (await db.execute(
+        select(DriverLocation.driver_id, DriverLocation.lat, DriverLocation.lng, DriverLocation.recorded_at,
+               busy.label("busy"))
+        .join(DriverProfile, DriverProfile.user_id == DriverLocation.driver_id)
+        .join(User, User.id == DriverLocation.driver_id)
+        .where(*conditions)
+        .limit(limit)
+    )).all()
+    return rows
 
 
 async def _offer_to_next(db: AsyncSession, ride: Ride, ops: OpsSettings) -> str:
