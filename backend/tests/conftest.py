@@ -87,7 +87,7 @@ async def campus_loaded():
 @pytest.fixture(autouse=True)
 async def clean_db():
     async with SessionLocal() as db:
-        tables = [t for t in ("ratings", "payments", "notifications", "ride_events", "ride_offers", "rides",
+        tables = [t for t in ("ratings", "payments", "notifications", "ride_approach_samples", "ride_events", "ride_offers", "rides",
                               "driver_locations", "saved_places", "vehicles", "driver_profiles", "auth_sessions",
                               "otp_challenges", "audit_logs", "system_settings", "users") if t not in KEEP_TABLES]
         if TEST_DB.startswith("postgresql"):
