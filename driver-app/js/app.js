@@ -92,6 +92,7 @@ async function start(user) {
   await refresh();
   setInterval(tick, 1000);
   setInterval(() => { if (rt.status !== 'online') refresh(true); }, 5000); // REST fallback while the socket is down
+  setInterval(refreshDemand, 30000);
 }
 
 async function refresh(quiet = false) {
@@ -108,6 +109,7 @@ function applyState(st) {
   if (before?.active_ride?.id !== st.active_ride?.id) { S.route = null; S.routeAt = 0; }
   render();
   refreshRoute();
+  if (st.profile.is_online && !before?.profile.is_online) refreshDemand();
 }
 
 function onRideUpdated(ride) {
@@ -325,8 +327,15 @@ function profileForm() {
     <form id="profile-form">
       <div class="field"><label for="p-name">Full name</label><input id="p-name" class="input" required maxlength="80" value="${S.st.profile.name || ''}" autocomplete="name"></div>
       <div class="field"><label for="p-vehicle">Vehicle registration number</label><input id="p-vehicle" class="input" required maxlength="20" placeholder="UK 08 ER 1234" value="${S.st.vehicle?.number || ''}" style="text-transform:uppercase"></div>
+      <div class="field"><label for="p-capacity">Passenger seats</label><input id="p-capacity" class="input" type="number" required min="1" max="6" step="1" value="${S.st.vehicle?.capacity || 4}">
+        <span class="hint">You are only offered rides whose group fits in your rickshaw.</span></div>
       <button class="btn btn-primary btn-block" type="submit">Save profile</button>
     </form>`;
+}
+
+function profileBody(root) {
+  return { name: root.querySelector('#p-name').value.trim(), vehicle_number: root.querySelector('#p-vehicle').value.trim(),
+    capacity: Number(root.querySelector('#p-capacity').value) };
 }
 
 function idleView() {
@@ -338,14 +347,29 @@ function idleView() {
       ${online ? 'Go off duty' : 'Go on duty'}</button>
     <div class="gps-line" data-gps></div>
     ${online ? raw(html`<div class="empty" style="padding:16px 8px"><div class="icon">\u{1F4E1}</div>
-      <strong>Waiting for ride requests</strong><br><span class="small">Offers appear here automatically. Keep this screen open while on duty.</span></div>`)
+      <strong>Waiting for ride requests</strong><br><span class="small">Offers appear here automatically. Keep this screen open while on duty.</span></div>
+      ${raw(demandSummary())}`)
       : raw(html`<p class="muted small" style="text-align:center">Going on duty shares your live location with the dispatch system until you go off duty.</p>`)}`;
+}
+
+function demandSummary() {
+  const cells = S.demand?.cells || [];
+  if (!cells.length) return html`<p class="small muted" style="text-align:center;margin:0">No ride requests on campus in the last ${S.demand?.window_min || 60} min.</p>`;
+  const waiting = cells.reduce((n, c) => n + c.waiting, 0);
+  return html`<p class="small" style="text-align:center;margin:0">${waiting ? raw(html`<span class="badge badge-warn">${waiting} waiting now</span> `) : ''}
+    Shaded areas on the map show where passengers booked in the last ${S.demand.window_min} min. Darker = busier.</p>`;
+}
+
+function partySize(n = 1) {
+  return `${n} passenger${n > 1 ? 's' : ''}`;
 }
 
 function offerView(o) {
   return html`<div class="offer" role="alertdialog" aria-labelledby="offer-title">
     <div class="row-between"><h2 id="offer-title">New ride request</h2><span class="badge badge-accent">${o.fare.display} cash</span></div>
     <div class="big num">${distance(o.distance_to_pickup_m)} <span class="small muted">to pickup</span></div>
+    <div class="row-between" style="margin-top:6px"><span class="strong">\u{1F465} ${partySize(o.passenger_count)}</span>
+      ${o.fare_breakdown?.boost_per_passenger.paise ? raw(html`<span class="badge badge-ok">+${o.fare_breakdown.boost_per_passenger.display}/person boost</span>`) : ''}</div>
     <div class="route-stops small" style="margin:8px 0">
       <div>\u{1F7E2} <strong>${o.pickup.name}</strong></div><div>\u{1F534} ${o.dropoff.name}</div>
       <div class="muted">Trip ${distance(o.route.distance_m)}${o.route.approximate ? ' (approx.)' : ''} · passenger ${o.passenger_first_name}</div>
@@ -371,7 +395,7 @@ function tripView(r) {
     <div class="step-head"><h2>${steps[0]}</h2>${raw(statusBadge(r.status))}</div>
     <div class="next-target">${target.name}</div>
     <div class="small muted">${raw(eta)}${r.status === 'ARRIVED' ? raw(html`<span data-waited></span>`) : ''}</div>
-    <div class="passenger-row"><div><div class="strong">${p.name || 'Passenger'}</div><div class="small muted">${r.fare.display} cash · ${r.pickup.name} → ${r.dropoff.name}</div></div>
+    <div class="passenger-row"><div><div class="strong">${p.name || 'Passenger'} · \u{1F465} ${partySize(r.passenger_count)}</div><div class="small muted">${r.fare.display} cash · ${r.pickup.name} → ${r.dropoff.name}</div></div>
       ${p.phone ? raw(html`<a class="btn btn-outline btn-icon" href="tel:${p.phone}" aria-label="Call passenger">\u{1F4DE}</a>`) : ''}</div>
     <button class="btn btn-primary btn-block primary-action" id="step-btn" data-step="${steps[2]}">${steps[1]}</button>
     <div class="action-row">
@@ -465,7 +489,7 @@ function bind() {
     const btn = e.currentTarget.querySelector('button');
     await busy(btn, async () => {
       try {
-        applyState(await api.put('/api/driver/profile', { name: $('#p-name').value.trim(), vehicle_number: $('#p-vehicle').value.trim() }));
+        applyState(await api.put('/api/driver/profile', profileBody(document)));
         toast('Profile saved', 'success');
       } catch (err) { showError(err); }
     });
@@ -523,6 +547,12 @@ async function tripStep(button) {
   const r = S.st.active_ride;
   const step = button.dataset.step;
   let body = {};
+  if (step === 'start' && r.requires_pin) {
+    const pin = await modal({ title: 'Enter the passenger’s PIN', body: 'Ask the passenger for the 4-digit PIN shown in their app. It confirms you picked up the right person.',
+      confirmText: 'Start trip', cancelText: 'Back', input: { label: 'PIN', placeholder: '1234', inputmode: 'numeric', maxlength: 4 } });
+    if (pin === null) return;
+    body = { pin: pin.trim() };
+  }
   if (step === 'complete') {
     const choice = await modal({ title: 'Complete trip', body: html`Collect <strong>${r.fare.display}</strong> in cash from the passenger.`,
       confirmText: 'Cash received — complete', cancelText: 'Not yet' });
@@ -557,8 +587,28 @@ function drawMe() {
   if (p && p.accuracy_m && S.map) S.layers.acc = L.circle([p.lat, p.lng], { radius: p.accuracy_m, color: '#1565c0', weight: 1, fillOpacity: 0.08, interactive: false }).addTo(S.map);
 }
 
+async function refreshDemand() {
+  if (!S.st?.profile.is_online || S.st.active_ride || S.st.offer) return;
+  try { S.demand = await api.get('/api/driver/demand'); } catch { return; } // keep the last map on a network blip
+  if (!S.st.active_ride && !S.st.offer) render();
+}
+
+function drawDemand() {
+  S.layers.demand?.remove();
+  delete S.layers.demand;
+  const cells = S.demand?.cells || [];
+  if (!S.st.profile.is_online || S.st.active_ride || S.st.offer || !cells.length) return;
+  const busiest = Math.max(...cells.map((c) => c.requests));
+  S.layers.demand = L.layerGroup(cells.map((c) => L.circle([c.lat, c.lng], {
+    radius: S.demand.cell_m * 0.6, stroke: c.waiting > 0, color: '#e65100', weight: 2,
+    fillColor: c.waiting ? '#e65100' : '#f9a825', fillOpacity: 0.15 + 0.4 * (c.requests / busiest),
+  }).bindTooltip(`${c.waiting ? `${c.waiting} waiting now · ` : ''}${c.requests} request${c.requests > 1 ? 's' : ''} in ${S.demand.window_min} min`
+    + `${c.missed ? ` · ${c.missed} found no driver` : ''}`))).addTo(S.map);
+}
+
 function drawLayers() {
   if (!S.map || !S.st) return;
+  drawDemand();
   drawMe();
   const r = S.st.active_ride;
   const o = S.st.offer;
@@ -600,7 +650,7 @@ function openMenu() {
       dd.body.querySelector('#profile-form').addEventListener('submit', async (ev) => {
         ev.preventDefault();
         try {
-          applyState(await api.put('/api/driver/profile', { name: dd.body.querySelector('#p-name').value.trim(), vehicle_number: dd.body.querySelector('#p-vehicle').value.trim() }));
+          applyState(await api.put('/api/driver/profile', profileBody(dd.body)));
           dd.close(); toast('Profile saved', 'success');
         } catch (err) { showError(err); }
       });
@@ -620,11 +670,12 @@ async function openEarnings() {
     const block = (label, w) => html`<div class="card"><h3>${label}</h3><div class="stat-grid">
       <div class="stat"><div class="label">Trips</div><div class="value">${w.trips}</div></div>
       <div class="stat"><div class="label">Your share</div><div class="value">${rupees(w.driver_share_paise)}</div></div>
-      <div class="stat"><div class="label">Cash collected</div><div class="value">${rupees(w.cash_collected_paise)}</div></div></div></div>`;
+      <div class="stat"><div class="label">Cash collected</div><div class="value">${rupees(w.cash_collected_paise)}</div></div>
+      ${w.cancellation_fees_paise ? raw(html`<div class="stat"><div class="label">Cancellation fees</div><div class="value">${rupees(w.cancellation_fees_paise)}</div></div>`) : ''}</div></div>`;
     d.body.innerHTML = block('Today', e.today) + block('Last 7 days', e.last_7_days) + block('All time', e.all_time) + html`
       <div class="card small"><div>Rating: <strong>${e.rating.average ? `★ ${e.rating.average.toFixed(1)} (${e.rating.count})` : 'No ratings yet'}</strong></div>
       <div>Offer acceptance: <strong>${e.acceptance_rate == null ? '—' : `${Math.round(e.acceptance_rate * 100)}%`}</strong></div>
-      <div class="muted" style="margin-top:6px">Calculated from completed trips only. Driver share: ${e.driver_share_percent}% of fares. ${e.timezone_note}</div></div>`;
+      <div class="muted" style="margin-top:6px">Calculated from completed trips, plus cancellation fees settled at the transport office. Driver share: ${e.driver_share_percent}% of fares. ${e.timezone_note}</div></div>`;
   } catch (err) { d.body.innerHTML = html`<div class="empty">${err.message}</div>`; }
 }
 

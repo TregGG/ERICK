@@ -16,7 +16,7 @@ OPS_KEY = "operations"
 
 @dataclass(frozen=True)
 class OpsSettings:
-    # Flat development fare carried over from the original app (Rs 10), stored in paise.
+    # Base fare per passenger (Rs 10), stored in paise. A ride costs (fare + boost) x passengers.
     fare_paise: int = 1000
     dispatch_radius_m: int = 2500
     offer_timeout_s: int = 20
@@ -28,8 +28,27 @@ class OpsSettings:
     # Share of each fare credited to the driver. 100 = no platform commission (no commission model is defined yet).
     driver_share_percent: int = 100
     require_driver_verification: bool = True
+    # Optional extra a passenger offers per passenger to attract a driver at peak times.
+    max_boost_paise: int = 5000
+    max_boosts_per_ride: int = 3
+    # A passenger who cancels while the assigned driver is driving towards the pickup pays
+    # cancel_fee_percent of the fare (at least cancel_fee_min_paise). "Driving towards" means the
+    # driver got more than approach_min_m closer to the pickup over the last cancel_window_s.
+    cancel_fee_percent: int = 50
+    cancel_fee_min_paise: int = 1000
+    cancel_window_s: int = 30
+    approach_min_m: int = 20
+    # Drivers' demand map counts ride requests from this many recent minutes.
+    demand_window_min: int = 60
 
     LIMITS = {
+        "demand_window_min": (10, 240),
+        "max_boost_paise": (0, 50000),
+        "max_boosts_per_ride": (0, 10),
+        "cancel_fee_percent": (0, 100),
+        "cancel_fee_min_paise": (0, 50000),
+        "cancel_window_s": (10, 300),
+        "approach_min_m": (5, 500),
         "driver_share_percent": (0, 100),
         "no_show_wait_s": (0, 1800),
         "fare_paise": (0, 50000),

@@ -12,8 +12,8 @@ from ..config import settings
 from ..db import get_db, utcnow
 from ..models import DriverLocation, DriverProfile, Payment, Ride, RideOffer, Vehicle
 from ..realtime import commit_and_publish, queue_event
-from ..security import Principal, require_driver
-from ..services import dispatch, locations
+from ..security import Principal, rate_limiter, require_driver
+from ..services import demand, dispatch, locations
 from ..services import rides as ride_service
 from ..services.ops_settings import get_ops
 from ..states import OfferStatus, RideStatus
@@ -26,6 +26,8 @@ VEHICLE_RE = re.compile(r"^[A-Z]{2}[ -]?\d{1,2}[ -]?[A-Z]{0,3}[ -]?\d{1,4}$")
 class ProfileIn(BaseModel):
     name: str = Field(min_length=2, max_length=80)
     vehicle_number: str = Field(min_length=4, max_length=20)
+    # Passenger seats; only rides with a party that fits are offered to this driver.
+    capacity: Optional[int] = Field(default=None, ge=1, le=ride_service.MAX_PASSENGERS)
 
 
 class OnlineIn(BaseModel):
@@ -38,6 +40,10 @@ class CompleteIn(BaseModel):
 
 class CancelIn(BaseModel):
     reason: Optional[str] = Field(default=None, max_length=200)
+
+
+class StartIn(BaseModel):
+    pin: Optional[str] = Field(default=None, max_length=8)
 
 
 async def driver_state(db: AsyncSession, principal: Principal) -> dict:
@@ -86,9 +92,12 @@ async def update_profile(body: ProfileIn, principal: Principal = Depends(require
     principal.user.name = ride_service.clean_text(body.name, 80)
     vehicle = (await db.execute(select(Vehicle).where(Vehicle.driver_id == principal.id))).scalar_one_or_none()
     if vehicle is None:
-        db.add(Vehicle(driver_id=principal.id, registration_number=number))
+        vehicle = Vehicle(driver_id=principal.id, registration_number=number)
+        db.add(vehicle)
     else:
         vehicle.registration_number = number
+    if body.capacity is not None:
+        vehicle.capacity = body.capacity
     if await db.get(DriverProfile, principal.id) is None:
         db.add(DriverProfile(user_id=principal.id))
     try:
@@ -171,9 +180,11 @@ async def arrived(ride_id: str, principal: Principal = Depends(require_driver), 
 
 
 @router.post("/rides/{ride_id}/start")
-async def start(ride_id: str, principal: Principal = Depends(require_driver), db: AsyncSession = Depends(get_db)):
+async def start(ride_id: str, body: StartIn = StartIn(), principal: Principal = Depends(require_driver),
+                db: AsyncSession = Depends(get_db)):
+    rate_limiter.check("start_pin", ride_id, limit=5, window_s=300)  # 10,000 PINs: no guessing
     ride = await _ride(db, ride_id)
-    await ride_service.driver_start(db, principal.user, ride)
+    await ride_service.driver_start(db, principal.user, ride, body.pin)
     await commit_and_publish(db)
     return await ride_service.ride_view(db, ride, "driver", principal.id)
 
@@ -205,6 +216,11 @@ async def cancel(ride_id: str, body: CancelIn, principal: Principal = Depends(re
     return {"ok": True, "status": ride.status}
 
 
+@router.get("/demand")
+async def demand_map(principal: Principal = Depends(require_driver), db: AsyncSession = Depends(get_db)):
+    return await demand.demand_cells(db, await get_ops(db))
+
+
 @router.get("/rides")
 async def history(limit: int = Query(20, ge=1, le=100), before: Optional[datetime] = None,
                   principal: Principal = Depends(require_driver), db: AsyncSession = Depends(get_db)):
@@ -232,7 +248,15 @@ async def earnings(principal: Principal = Depends(require_driver), db: AsyncSess
             .select_from(Ride).outerjoin(Payment, Payment.ride_id == Ride.id).where(and_(*conditions))
         )).one()
         trips, fares, collected = int(row[0]), int(row[1]), int(row[2])
+        fee_conditions = [Ride.driver_id == principal.id, Payment.kind == "cancellation_fee", Payment.status == "PAID"]
+        if since is not None:
+            fee_conditions.append(Ride.cancelled_at >= since)
+        fees = int((await db.execute(
+            select(func.coalesce(func.sum(Payment.amount_paise), 0)).select_from(Payment)
+            .join(Ride, Ride.id == Payment.ride_id).where(and_(*fee_conditions))
+        )).scalar_one())
         return {"trips": trips, "fares_paise": fares, "cash_collected_paise": collected,
+                "cancellation_fees_paise": fees,
                 "driver_share_paise": fares * ops.driver_share_percent // 100,
                 "display": ride_service.rupees(fares * ops.driver_share_percent // 100)}
 

@@ -12,6 +12,7 @@ import {
 const api = new ApiClient('campusrick.passenger.token');
 const rt = new Realtime(() => api.token);
 const TERMINAL = ['COMPLETED', 'CANCELLED', 'NO_DRIVER_AVAILABLE'];
+const BOOST_STEPS = [0, 500, 1000, 2000];
 const CANCEL_REASONS = ['Plans changed', 'Driver is taking too long', 'Booked by mistake', 'Found another ride', 'Other'];
 
 const S = {
@@ -19,6 +20,8 @@ const S = {
   ride: null,            // authoritative ride from the server (active or just finished)
   pickup: null, dropoff: null, field: 'pickup', searching: false, query: '',
   preview: null, nearby: null, places: [], requestKey: null,
+  passengers: 1, boost: 0,   // party size and per-passenger boost (paise) for the next request
+  fees: [],                  // unpaid cancellation fees; booking is blocked until they are settled
   layers: {}, lastRouteAt: 0, lastRouteFrom: null, driverRoute: null,
 };
 
@@ -59,7 +62,7 @@ async function boot() {
 function askLogin() {
   showLogin({
     api, app: 'passenger', askName: true, title: 'Book a campus e-rickshaw',
-    subtitle: 'Sign in with your mobile number. Flat fare, live tracking.', onSuccess: start,
+    subtitle: 'Sign in with your mobile number. Fair per-person fares, live tracking.', onSuccess: start,
   });
 }
 
@@ -70,15 +73,23 @@ function showFatal(err) {
 async function start(user) {
   S.user = user;
   $('#menu-btn').hidden = false;
-  rt.on('sync', (data) => { if (data.role === 'passenger') applyRide(data.active_ride, { fromSync: true }); });
+  rt.on('sync', (data) => {
+    if (data.role !== 'passenger') return;
+    S.fees = data.outstanding_fees || [];
+    applyRide(data.active_ride, { fromSync: true });
+  });
   rt.on('ride.updated', (ride) => applyRide(ride));
   rt.on('driver.location', onDriverLocation);
-  rt.on('notification', (n) => { if (!['ride_accepted'].includes(n.kind)) toast(n.title + (n.body ? ` — ${n.body}` : '')); });
+  rt.on('notification', (n) => {
+    if (!['ride_accepted'].includes(n.kind)) toast(n.title + (n.body ? ` — ${n.body}` : ''));
+    if (['cancellation_fee', 'fee_settled'].includes(n.kind)) refreshFees();
+  });
   rt.on('auth-failed', () => { api.token = null; toast('Your session ended. Please sign in again.', 'error'); setTimeout(() => location.reload(), 1500); });
   rt.on('status', ({ status }) => { if (status !== 'online') ensurePolling(); });
   rt.start();
   try {
     const state = await api.get('/api/passenger/state');
+    S.fees = state.outstanding_fees || [];
     applyRide(state.active_ride, { fromSync: true });
   } catch (err) { showError(err); render(); }
   api.get('/api/passenger/places').then((p) => { S.places = p; render(); }).catch(() => {});
@@ -171,14 +182,42 @@ function locField(kind, label, point) {
   </button>`;
 }
 
+function fareTotal() {
+  return (S.config.fare.paise + S.boost) * S.passengers;
+}
+
+function partyPicker() {
+  const fare = S.config.fare;
+  const steps = BOOST_STEPS.filter((b) => b <= fare.max_boost.paise);
+  return html`<div class="party">
+    <div class="row-between"><span class="strong">Passengers</span>
+      <div class="stepper" role="group" aria-label="Number of passengers">
+        <button type="button" class="btn btn-sm btn-outline" data-count="-1" aria-label="Fewer passengers" ${S.passengers <= 1 ? 'disabled' : ''}>−</button>
+        <span class="num strong" aria-live="polite">${S.passengers}</span>
+        <button type="button" class="btn btn-sm btn-outline" data-count="1" aria-label="More passengers" ${S.passengers >= fare.max_passengers ? 'disabled' : ''}>+</button>
+      </div></div>
+    ${steps.length > 1 ? raw(html`<div class="row-between"><span>Boost <span class="small muted">per person · helps at peak times</span></span>
+      <div class="chips">${steps.map((b) => raw(html`<button type="button" class="btn btn-sm ${b === S.boost ? 'btn-primary' : 'btn-outline'}" data-boost="${b}"
+        aria-pressed="${b === S.boost}">${b ? `+${rupees(b)}` : 'None'}</button>`))}</div></div>`) : ''}
+    <div class="small muted">(${fare.display}${S.boost ? ` + ${rupees(S.boost)}` : ''}) × ${S.passengers} passenger${S.passengers > 1 ? 's' : ''} = <strong>${rupees(fareTotal())}</strong></div>
+  </div>`;
+}
+
+function feesBanner() {
+  if (!S.fees.length) return '';
+  const total = S.fees.reduce((sum, f) => sum + f.amount.paise, 0);
+  return html`<div class="banner banner-danger small" style="margin-bottom:10px"><div><strong>You owe a ${rupees(total)} cancellation fee.</strong>
+    You cancelled while your driver was on the way. Settle it with the transport office to book again.</div></div>`;
+}
+
 function bookingView() {
   const p = S.preview;
-  const fare = S.config.fare;
+  const total = rupees(fareTotal());
   let summary = '';
   if (S.pickup && S.dropoff) {
     summary = p ? html`<div class="trip-summary">
         <span class="strong">${distance(p.distance_m)} · ${duration(p.duration_s)}</span>
-        <span class="fare num">${fare.display}</span>
+        <span class="fare num">${total}</span>
         <span class="small muted">${p.approximate ? 'Approximate straight-line estimate (road routing unavailable)' : 'Road route estimate'}</span>
       </div>` : '<div class="skeleton" style="height:62px;margin-bottom:12px"></div>';
   }
@@ -189,10 +228,10 @@ function bookingView() {
     <h2>Where to?</h2>
     <div class="loc-fields">${raw(locField('pickup', 'Pickup', S.pickup))}${raw(locField('dropoff', 'Drop-off', S.dropoff))}</div>
     ${S.searching ? raw(searchPanel()) : raw(html`<p class="hint" style="margin:-4px 0 12px">Tap a field to search, or tap the map to drop a pin. Pins can be dragged.</p>`)}
-    ${raw(summary)}${raw(nearby)}
-    <button class="btn btn-primary btn-block" id="request-btn" ${S.pickup && S.dropoff ? '' : 'disabled'}>
-      Request rickshaw · ${fare.display}</button>
-    <p class="small muted" style="text-align:center;margin:10px 0 0">Flat campus fare, paid in cash to the driver.</p>`;
+    ${raw(feesBanner())}${raw(summary)}${raw(partyPicker())}${raw(nearby)}
+    <button class="btn btn-primary btn-block" id="request-btn" ${S.pickup && S.dropoff && !S.fees.length ? '' : 'disabled'}>
+      Request rickshaw · ${total}</button>
+    <p class="small muted" style="text-align:center;margin:10px 0 0">Fare per passenger, paid in cash to the driver.</p>`;
 }
 
 function searchPanel() {
@@ -218,7 +257,8 @@ function trip(r) {
     <div><span class="loc-field-marker" aria-hidden="true">\u{1F7E2}</span><span>${r.pickup.name}</span></div>
     <div><span aria-hidden="true">\u{1F534}</span><span>${r.dropoff.name}</span></div></div>
     <div class="row-between small muted"><span>${distance(r.route.distance_m)} · ${duration(r.route.duration_s)}${r.route.approximate ? ' (approx.)' : ''}</span>
-    <span class="strong" style="color:var(--text)">${r.fare.display} cash</span></div>`;
+    <span class="strong" style="color:var(--text)">${r.fare.display} cash</span></div>
+    <div class="small muted">\u{1F465} ${r.passenger_count} passenger${r.passenger_count > 1 ? 's' : ''}${r.fare_breakdown.boost_per_passenger.paise ? ` · includes +${r.fare_breakdown.boost_per_passenger.display}/person boost` : ''}</div>`;
 }
 
 function searchingView(r) {
@@ -228,8 +268,16 @@ function searchingView(r) {
     <h2 style="text-align:center;margin-bottom:4px">Finding you a rickshaw</h2>
     <p class="muted" style="text-align:center;margin:0 0 14px">${r.status === 'OFFERED' ? 'A nearby driver is reviewing your request…' : 'Looking for the nearest available driver…'}
       <br><span class="small" data-search-left>${left > 0 ? `Searching for up to ${Math.ceil(left / 60)} more min` : 'Finishing search…'}</span></p>
-    ${raw(trip(r))}<hr class="divider">
+    ${raw(trip(r))}${raw(boostOffer(r))}<hr class="divider">
     <button class="btn btn-ghost-danger btn-block" id="cancel-btn">Cancel request</button>`;
+}
+
+function boostOffer(r) {
+  const fare = S.config.fare;
+  const steps = BOOST_STEPS.filter((b) => b > r.fare_breakdown.boost_per_passenger.paise && b <= fare.max_boost.paise);
+  if (!steps.length || r.fare_breakdown.boost_count >= fare.max_boosts_per_ride) return '';
+  return html`<div class="party" style="margin-top:12px"><span class="small strong">Taking a while? Offer drivers more (per person)</span>
+    <div class="chips">${steps.map((b) => raw(html`<button type="button" class="btn btn-sm btn-outline" data-raise="${b}">+${rupees(b)}</button>`))}</div></div>`;
 }
 
 function driverCard(r) {
@@ -254,7 +302,9 @@ function activeView(r) {
   else eta = '<div class="skeleton" style="height:34px;width:50%;margin-bottom:12px"></div>';
   return html`
     <div class="status-head"><h2>${titles[r.status]}</h2></div>
-    ${raw(eta)}${raw(driverCard(r))}<hr class="divider">${raw(trip(r))}
+    ${raw(eta)}${r.start_pin ? raw(html`<div class="start-pin"><span class="small muted">Tell your driver this PIN to start the trip</span>
+      <span class="pin-digits num" aria-label="PIN ${r.start_pin.split('').join(' ')}">${r.start_pin}</span></div>`) : ''}
+    ${raw(driverCard(r))}<hr class="divider">${raw(trip(r))}
     ${r.status !== 'IN_PROGRESS' ? raw('<hr class="divider"><button class="btn btn-ghost-danger btn-block" id="cancel-btn">Cancel ride</button>') : ''}`;
 }
 
@@ -278,6 +328,7 @@ function finishedView(r) {
   return html`
     <div class="status-head"><h2>${r.status === 'NO_DRIVER_AVAILABLE' ? 'No rickshaw available' : 'Ride cancelled'}</h2>${raw(statusBadge(r.status))}</div>
     <p class="muted">${message}</p>${raw(trip(r))}
+    ${r.cancellation_fee ? raw(html`<div class="banner banner-warn small" style="margin-top:10px">Cancellation fee ${r.cancellation_fee.display}: settle it with the transport office before your next ride.</div>`) : ''}
     <button class="btn btn-primary btn-block" style="margin-top:14px" id="retry-btn">${r.status === 'NO_DRIVER_AVAILABLE' ? 'Try again' : 'Book a new ride'}</button>
     <button class="btn btn-ghost btn-block" id="done-btn">Close</button>`;
 }
@@ -311,8 +362,16 @@ function bindSheet() {
       } catch (err) { toast(err.message, 'error', 7000); }
     });
   });
+  body.querySelectorAll('[data-count]').forEach((el) => el.addEventListener('click', () => {
+    S.passengers = Math.min(S.config.fare.max_passengers, Math.max(1, S.passengers + Number(el.dataset.count)));
+    S.requestKey = null; render();
+  }));
+  body.querySelectorAll('[data-boost]').forEach((el) => el.addEventListener('click', () => {
+    S.boost = Number(el.dataset.boost); S.requestKey = null; render();
+  }));
+  body.querySelectorAll('[data-raise]').forEach((el) => el.addEventListener('click', () => boostRide(Number(el.dataset.raise), el)));
   $('#request-btn')?.addEventListener('click', (e) => requestRide(e.currentTarget));
-  $('#cancel-btn')?.addEventListener('click', cancelRide);
+  $('#cancel-btn')?.addEventListener('click', () => cancelRide());
   $('#done-btn')?.addEventListener('click', () => { S.ride = null; resetBooking(); });
   $('#retry-btn')?.addEventListener('click', () => {
     const r = S.ride; S.ride = null; resetBooking();
@@ -367,7 +426,7 @@ function setPoint(field, point, refresh = true) {
 }
 
 function resetBooking() {
-  S.pickup = null; S.dropoff = null; S.preview = null; S.field = 'pickup'; S.searching = false; S.requestKey = null;
+  S.pickup = null; S.dropoff = null; S.preview = null; S.field = 'pickup'; S.searching = false; S.requestKey = null; S.boost = 0;
   render();
 }
 
@@ -393,28 +452,60 @@ async function requestRide(button) {
   S.requestKey = S.requestKey || newIdempotencyKey(); // same key on retry => no duplicate booking
   await busy(button, async () => {
     try {
-      const ride = await api.post('/api/passenger/rides', { pickup: S.pickup, dropoff: S.dropoff }, { headers: { 'Idempotency-Key': S.requestKey } });
+      const ride = await api.post('/api/passenger/rides', { pickup: S.pickup, dropoff: S.dropoff, passenger_count: S.passengers, boost_paise: S.boost },
+        { headers: { 'Idempotency-Key': S.requestKey } });
       S.requestKey = null;
       applyRide(ride);
     } catch (err) {
       if (err.code === 'active_ride_exists') {
         const state = await api.get('/api/passenger/state');
         applyRide(state.active_ride);
+      } else if (err.code === 'fee_outstanding') {
+        S.fees = err.extra.fees || []; render(); showError(err);
       } else showError(err);
     }
   });
 }
 
-async function cancelRide() {
+async function boostRide(boost, button) {
   const r = S.ride;
+  const total = (r.fare_breakdown.base_per_passenger.paise + boost) * r.passenger_count;
+  const ok = await modal({ title: `Boost to +${rupees(boost)} per person?`,
+    body: html`Your fare becomes <strong>${rupees(total)}</strong>. Drivers who passed on your request will see it again.`,
+    confirmText: 'Boost fare', cancelText: 'Not now' });
+  if (!ok) return;
+  await busy(button, async () => {
+    try { applyRide(await api.post(`/api/passenger/rides/${r.id}/boost`, { boost_paise: boost })); toast('Fare boosted', 'success'); }
+    catch (err) { showError(err); }
+  });
+}
+
+async function refreshFees() {
+  try { S.fees = (await api.get('/api/passenger/state')).outstanding_fees || []; render(); } catch { /* next sync will catch up */ }
+}
+
+async function cancelRide(quote = null) {
+  const r = S.ride;
+  if (!quote && r.driver) {
+    try { quote = await api.get(`/api/passenger/rides/${r.id}/cancel-quote`); } catch (err) { showError(err); return; }
+  }
+  const fee = quote?.fee;
+  const body = fee
+    ? html`<strong>Cancelling now costs ${fee.display}.</strong> ${quote.reason} You will need to settle the fee with the transport office before your next ride.`
+    : r.driver ? html`Free cancellation. ${quote?.reason || ''}` : 'We will stop looking for a driver.';
   const reason = await modal({
-    title: 'Cancel this ride?', body: r.driver ? 'Your driver is already on the way.' : 'We will stop looking for a driver.',
-    confirmText: 'Cancel ride', cancelText: 'Keep ride', danger: true, input: { label: 'Reason', options: CANCEL_REASONS },
+    title: 'Cancel this ride?', body,
+    confirmText: fee ? `Cancel and pay ${fee.display}` : 'Cancel ride', cancelText: 'Keep ride', danger: true,
+    input: { label: 'Reason', options: CANCEL_REASONS },
   });
   if (reason === null) return;
   try {
-    applyRide(await api.post(`/api/passenger/rides/${r.id}/cancel`, { reason }));
-  } catch (err) { showError(err); }
+    applyRide(await api.post(`/api/passenger/rides/${r.id}/cancel`, { reason, accepted_fee_paise: fee?.paise || 0 }));
+    if (fee) refreshFees();
+  } catch (err) {
+    if (err.code === 'fee_changed') return cancelRide(err.extra.quote); // the driver started approaching; confirm the new fee
+    showError(err);
+  }
 }
 
 // ------------------------------------------------------------------ map layers

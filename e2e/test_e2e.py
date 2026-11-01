@@ -155,7 +155,10 @@ def test_full_passenger_driver_scenario():
         # 9. Arrive, start, complete.
         driver.click("#step-btn")  # I have arrived
         expect(passenger.get_by_role("heading", name="Your rickshaw is here")).to_be_visible(timeout=10000)
+        pin = passenger.locator(".pin-digits").inner_text()  # the passenger reads out their PIN
         driver.click("#step-btn")  # start trip
+        driver.fill("#modal-input", pin)
+        driver.click("text=Start trip")
         expect(passenger.get_by_role("heading", name="On your way")).to_be_visible(timeout=10000)
         driver_ctx.set_geolocation(RAJENDRA)
         time.sleep(3.5)

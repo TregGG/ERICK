@@ -137,6 +137,8 @@ class Ride(Base):
     __table_args__ = (
         CheckConstraint(_in("status", RideStatus), name="ck_rides_status"),
         CheckConstraint("fare_paise >= 0", name="ck_rides_fare"),
+        CheckConstraint("passenger_count BETWEEN 1 AND 6", name="ck_rides_passenger_count"),
+        CheckConstraint("boost_paise >= 0", name="ck_rides_boost"),
         CheckConstraint("pickup_lat BETWEEN -90 AND 90 AND dropoff_lat BETWEEN -90 AND 90", name="ck_rides_lat"),
         CheckConstraint("pickup_lng BETWEEN -180 AND 180 AND dropoff_lng BETWEEN -180 AND 180", name="ck_rides_lng"),
         CheckConstraint(f"driver_id IS NOT NULL OR NOT ({ASSIGNED_RIDE_SQL})", name="ck_rides_assigned_has_driver"),
@@ -167,7 +169,15 @@ class Ride(Base):
     route_distance_m: Mapped[Optional[int]] = mapped_column(Integer)
     route_duration_s: Mapped[Optional[int]] = mapped_column(Integer)
     route_source: Mapped[Optional[str]] = mapped_column(String(24))
+    # fare_paise is the total: (base_fare_paise + boost_paise) * passenger_count.
     fare_paise: Mapped[int] = mapped_column(Integer, nullable=False)
+    passenger_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
+    base_fare_paise: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    boost_paise: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    boost_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    cancellation_fee_paise: Mapped[Optional[int]] = mapped_column(Integer)
+    # Four digits the passenger tells the driver at pickup; the trip can only start with it.
+    start_pin: Mapped[Optional[str]] = mapped_column(String(4))
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="INR")
 
     idempotency_key: Mapped[Optional[str]] = mapped_column(String(64))
@@ -220,6 +230,22 @@ class RideEvent(Base):
     created_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False, default=utcnow)
 
 
+class RideApproachSample(Base):
+    """Assigned driver's distance to the pickup over the last few minutes, used to price a cancellation.
+
+    Only the distance is kept, never coordinates, so no location history exists.
+    """
+
+    __tablename__ = "ride_approach_samples"
+    __table_args__ = (Index("ix_ride_approach_samples_ride", "ride_id", "recorded_at"),)
+
+    id: Mapped[int] = mapped_column(AutoId, primary_key=True, autoincrement=True)
+    ride_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("rides.id", ondelete="CASCADE"), nullable=False)
+    distance_m: Mapped[int] = mapped_column(Integer, nullable=False)
+    accuracy_m: Mapped[float] = mapped_column(Float, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+
+
 class DriverLocation(Base):
     """Latest known position per driver. History is deliberately not retained (privacy)."""
 
@@ -247,11 +273,13 @@ class Payment(Base):
         CheckConstraint("amount_paise >= 0", name="ck_payments_amount"),
         CheckConstraint("method IN ('cash')", name="ck_payments_method"),
         CheckConstraint("status IN ('PENDING', 'PAID', 'WAIVED')", name="ck_payments_status"),
+        CheckConstraint("kind IN ('fare', 'cancellation_fee')", name="ck_payments_kind"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     ride_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("rides.id", ondelete="CASCADE"), unique=True, nullable=False)
     amount_paise: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(String(24), nullable=False, default="fare", server_default="fare")
     method: Mapped[str] = mapped_column(String(16), nullable=False, default="cash")
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="PENDING")
     collected_by: Mapped[Optional[uuid.UUID]] = mapped_column(Uuid, ForeignKey("users.id", ondelete="SET NULL"))

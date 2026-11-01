@@ -8,7 +8,14 @@ const api = new ApiClient('campusrick.admin.token');
 const S = { user: null, tab: 'overview', timer: null, config: null };
 
 const SETTING_LABELS = {
-  fare_paise: ['Flat fare (paise)', '1000 paise = ₹10. Applied to new ride requests only.'],
+  fare_paise: ['Base fare per passenger (paise)', '1000 paise = ₹10. A ride costs (base + boost) × passengers. Applies to new requests only.'],
+  max_boost_paise: ['Max boost per passenger (paise)', 'Highest extra a passenger can offer per person to attract a driver at peak times.'],
+  max_boosts_per_ride: ['Boosts per ride', 'How many times a searching passenger can raise their boost.'],
+  cancel_fee_percent: ['Cancellation fee (%)', 'Share of the fare charged when the passenger cancels while the driver is approaching.'],
+  cancel_fee_min_paise: ['Minimum cancellation fee (paise)', 'The fee is never lower than this (capped at the fare).'],
+  cancel_window_s: ['Approach window (s)', 'Cancellation is free if the driver has not moved closer to the pickup in this time.'],
+  demand_window_min: ['Demand map window (min)', 'Drivers see where passengers booked within this many recent minutes.'],
+  approach_min_m: ['Approach threshold (m)', 'Net metres closer within the window that count as approaching (filters GPS jitter).'],
   driver_share_percent: ['Driver share (%)', 'Share of each fare credited to the driver in earnings.'],
   dispatch_radius_m: ['Dispatch radius (m)', 'Maximum straight-line distance from a driver to the pickup.'],
   offer_timeout_s: ['Offer timeout (s)', 'Time a driver has to accept before the next driver is asked.'],
@@ -45,7 +52,7 @@ async function start(user) {
   show(location.hash.slice(1) || 'overview');
 }
 
-const VIEWS = { overview, rides, drivers, users, campus, settings, reports, audit };
+const VIEWS = { overview, rides, fees, drivers, users, campus, settings, reports, audit };
 
 function show(tab) {
   if (!VIEWS[tab]) tab = 'overview';
@@ -109,7 +116,9 @@ async function openRide(id) {
     <div class="card stack"><div class="row-between"><strong>${r.pickup.name} → ${r.dropoff.name}</strong>${raw(statusBadge(r.status))}</div>
       <div class="small">Passenger: <strong>${r.passenger?.name || ''}</strong> · ${r.passenger?.phone || ''}</div>
       <div class="small">Driver: <strong>${r.driver?.name || '—'}</strong> ${r.driver ? `· ${r.driver.phone} · ${r.driver.vehicle_number || ''}` : ''}</div>
-      <div class="small">Fare ${r.fare.display} · ${distance(r.route.distance_m)} ${r.route.approximate ? '(straight-line estimate)' : '(road route)'}</div>
+      <div class="small">Fare ${r.fare.display} = (${r.fare_breakdown.base_per_passenger.display} + ${r.fare_breakdown.boost_per_passenger.display} boost) × ${r.passenger_count} passenger${r.passenger_count > 1 ? 's' : ''}
+        · ${distance(r.route.distance_m)} ${r.route.approximate ? '(straight-line estimate)' : '(road route)'}</div>
+      ${r.cancellation_fee ? raw(html`<div class="small">Cancellation fee: <strong>${r.cancellation_fee.display}</strong> (see Fees)</div>`) : ''}
       ${r.cancel_reason ? raw(html`<div class="small">Cancelled by ${r.cancelled_by}: ${r.cancel_reason}</div>`) : ''}
       ${r.payment ? raw(html`<div class="small">Payment: ${r.payment.status} (${r.payment.method})</div>`) : ''}</div>
     <div class="card"><h3>Status history</h3><ul class="timeline">${r.timeline.map((t) => raw(html`<li><span><strong>${t.to}</strong>
@@ -122,6 +131,33 @@ async function openRide(id) {
     if (!reason) return;
     try { await api.post(`/api/admin/rides/${id}/cancel`, { reason }); toast('Ride cancelled', 'success'); d.close(); show(S.tab); } catch (err) { showError(err); }
   });
+}
+
+// ---------------------------------------------------------------- fees
+
+async function fees(status = 'PENDING') {
+  const list = await api.get(`/api/admin/fees?status=${status}`);
+  $('#view').innerHTML = html`<h2>Cancellation fees</h2>
+    <p class="muted small" style="margin:0">Charged when a passenger cancels while the driver is approaching. A passenger with an unpaid fee cannot book.
+      Mark a fee paid once the cash is received; it is credited to that driver's earnings.</p>
+    <div class="row" style="margin:10px 0">${['PENDING', 'PAID', 'WAIVED'].map((s) => raw(html`<button class="btn btn-sm ${s === status ? 'btn-primary' : 'btn-outline'}" data-fee-filter="${s}">${s.toLowerCase()}</button>`))}</div>
+    ${raw(table(['Cancelled', 'Passenger', 'Driver', 'Pickup', 'Fee', ''], list.map((f) => html`<tr>
+      <td>${dateTime(f.cancelled_at)}</td><td>${f.passenger.name || ''}<br><span class="small muted">${f.passenger.phone}</span></td>
+      <td>${f.driver || '—'}</td><td>${f.pickup}</td><td class="num">${f.amount.display}</td>
+      <td>${f.status === 'PENDING' ? raw(html`<button class="btn btn-sm btn-primary" data-settle="${f.payment_id}" data-to="PAID">Mark paid</button>
+        <button class="btn btn-sm btn-outline" data-settle="${f.payment_id}" data-to="WAIVED">Waive</button>`) : f.status.toLowerCase()}</td></tr>`),
+      status === 'PENDING' ? 'No unpaid fees.' : 'Nothing here yet.'))}`;
+  $$('#view [data-fee-filter]').forEach((b) => b.addEventListener('click', () => fees(b.dataset.feeFilter)));
+  $$('#view [data-settle]').forEach((b) => b.addEventListener('click', async () => {
+    const waive = b.dataset.to === 'WAIVED';
+    const note = await modal({ title: waive ? 'Waive this fee?' : 'Mark fee as paid?', confirmText: waive ? 'Waive fee' : 'Mark paid',
+      body: 'The passenger can book again. Recorded in the audit log.', input: { label: 'Note (optional)' } });
+    if (note === null) return;
+    await busy(b, async () => {
+      try { await api.post(`/api/admin/fees/${b.dataset.settle}`, { status: b.dataset.to, note: note || null }); toast('Fee updated', 'success'); fees(status); }
+      catch (err) { showError(err); }
+    });
+  }));
 }
 
 // ---------------------------------------------------------------- rides
@@ -245,7 +281,7 @@ async function settings() {
       ${Object.entries(SETTING_LABELS).map(([key, [label, help]]) => raw(typeof values[key] === 'boolean'
         ? html`<div class="field"><label><input type="checkbox" name="${key}" ${values[key] ? 'checked' : ''}> ${label}</label><span class="hint">${help}</span></div>`
         : html`<div class="field"><label for="s-${key}">${label}</label><input id="s-${key}" class="input" type="number" name="${key}" value="${values[key]}"
-            min="${limits[key]?.[0] ?? 0}" max="${limits[key]?.[1] ?? ''}" step="1" required><span class="hint">${help}${key === 'fare_paise' ? ` Currently ${rupees(values[key])}.` : ''}</span></div>`))}
+            min="${limits[key]?.[0] ?? 0}" max="${limits[key]?.[1] ?? ''}" step="1" required><span class="hint">${help}${key.endsWith('_paise') ? ` Currently ${rupees(values[key])}.` : ''}</span></div>`))}
     </div><button class="btn btn-primary" type="submit">Save changes</button></form>`;
   $('#settings-form').addEventListener('submit', async (e) => {
     e.preventDefault();

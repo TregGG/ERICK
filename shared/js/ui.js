@@ -64,7 +64,7 @@ export function modal({ title, body = '', confirmText = 'Confirm', cancelText = 
         <div class="muted" style="margin-bottom:14px">${raw(body)}</div>
         ${input ? raw(html`<div class="field"><label for="modal-input">${input.label}</label>
           ${input.options ? raw(html`<select id="modal-input" class="input">${input.options.map((o) => raw(html`<option>${o}</option>`))}</select>`)
-            : raw(html`<input id="modal-input" class="input" maxlength="200" placeholder="${input.placeholder || ''}">`)}</div>`) : ''}
+            : raw(html`<input id="modal-input" class="input" maxlength="${input.maxlength || 200}" inputmode="${input.inputmode || 'text'}" autocomplete="off" placeholder="${input.placeholder || ''}">`)}</div>`) : ''}
         <div class="row" style="justify-content:flex-end">
           <button class="btn btn-ghost" data-act="cancel">${cancelText}</button>
           <button class="btn ${danger ? 'btn-danger' : 'btn-primary'}" data-act="ok">${confirmText}</button>
