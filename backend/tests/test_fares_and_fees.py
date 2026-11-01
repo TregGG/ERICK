@@ -139,7 +139,7 @@ async def test_location_updates_record_distance_only_samples(api):
     assert samples[0].distance_m > samples[1].distance_m
 
 
-async def test_cancelling_while_driver_approaches_costs_a_fee_and_blocks_booking(api):
+async def test_cancelling_while_driver_approaches_costs_a_fee_without_blocking_booking(api):
     driver, p, ride = await assigned_ride(api)
     await set_samples(ride["id"], [(40, 900), (0, 600)])
     q = await quote(api, p, ride["id"])
@@ -154,8 +154,11 @@ async def test_cancelling_while_driver_approaches_costs_a_fee_and_blocks_booking
 
     state = (await api.c.get("/api/passenger/state", headers=p["h"])).json()
     assert state["outstanding_fees"][0]["amount"]["paise"] == 1000
-    blocked = await request(api, p, expect=402)
-    assert blocked["code"] == "fee_outstanding"
+    # An unpaid fee is a reminder, not a block: the passenger can book again straight away.
+    rebooked = await request(api, p)
+    state = (await api.c.get("/api/passenger/state", headers=p["h"])).json()
+    assert state["outstanding_fees"][0]["amount"]["paise"] == 1000  # still owed
+    await cancel(api, p, rebooked["id"])  # nobody assigned yet, so this cancel is free
 
     admin = await api.admin()
     fees = (await api.c.get("/api/admin/fees", headers=admin["h"])).json()
@@ -165,7 +168,8 @@ async def test_cancelling_while_driver_approaches_costs_a_fee_and_blocks_booking
     again = await api.c.post(f"/api/admin/fees/{fees[0]['payment_id']}", headers=admin["h"], json={"status": "WAIVED"})
     assert again.json()["code"] == "already_settled"
 
-    await request(api, p)  # unblocked
+    state = (await api.c.get("/api/passenger/state", headers=p["h"])).json()
+    assert state["outstanding_fees"] == []  # settled
     earnings = (await api.c.get("/api/driver/earnings", headers=driver["h"])).json()
     assert earnings["all_time"]["cancellation_fees_paise"] == 1000
     async with SessionLocal() as db:

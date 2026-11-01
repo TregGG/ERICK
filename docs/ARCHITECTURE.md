@@ -66,8 +66,9 @@ driver stops heading to the pickup). A passenger cancellation is free unless the
 stopped reporting can't be shown to be approaching. The fee is `cancel_fee_percent` of the fare, at least
 `cancel_fee_min_paise`, capped at the fare. The client must send the fee it showed (`accepted_fee_paise`);
 a higher fee is refused with `fee_changed`, never charged silently. The fee is a PENDING
-`payments` row (`kind = 'cancellation_fee'`), and the passenger can't book again until an admin marks it
-PAID (credited to that driver's earnings) or WAIVED. Admin cancellations are always free.
+`payments` row (`kind = 'cancellation_fee'`). The passenger app shows unpaid fees as a reminder but booking
+is not blocked; an admin marks each fee PAID (credited to that driver's earnings) or WAIVED. Admin
+cancellations are always free.
 
 ## Start PIN
 

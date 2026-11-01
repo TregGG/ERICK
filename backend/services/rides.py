@@ -273,11 +273,7 @@ async def create_ride(db: AsyncSession, passenger: User, pickup: dict, dropoff: 
     if active:
         raise ServiceError(409, "You already have an active ride.", code="active_ride_exists", extra={"ride_id": str(active.id)})
 
-    owed = await outstanding_fees(db, passenger.id)
-    if owed:
-        total = sum(f["amount"]["paise"] for f in owed)
-        raise ServiceError(402, f"You owe a {rupees(total)} cancellation fee. Settle it with the transport office "
-                                "before booking again.", code="fee_outstanding", extra={"fees": owed})
+    # Unpaid cancellation fees are shown to the passenger (see passenger state) but do not block booking.
 
     ops = await get_ops(db)
     if not 1 <= passenger_count <= MAX_PASSENGERS:

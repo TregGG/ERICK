@@ -21,7 +21,7 @@ const S = {
   pickup: null, dropoff: null, field: 'pickup', searching: false, query: '',
   preview: null, nearby: null, places: [], requestKey: null,
   passengers: 1, boost: 0,   // party size and per-passenger boost (paise) for the next request
-  fees: [],                  // unpaid cancellation fees; booking is blocked until they are settled
+  fees: [],                  // unpaid cancellation fees; shown as a reminder, booking still allowed
   layers: {}, lastRouteAt: 0, lastRouteFrom: null, driverRoute: null,
 };
 
@@ -206,8 +206,8 @@ function partyPicker() {
 function feesBanner() {
   if (!S.fees.length) return '';
   const total = S.fees.reduce((sum, f) => sum + f.amount.paise, 0);
-  return html`<div class="banner banner-danger small" style="margin-bottom:10px"><div><strong>You owe a ${rupees(total)} cancellation fee.</strong>
-    You cancelled while your driver was on the way. Settle it with the transport office to book again.</div></div>`;
+  return html`<div class="banner banner-warn small" style="margin-bottom:10px"><div><strong>You owe ${rupees(total)}.</strong>
+    You cancelled while your driver was on the way. Please pay it to the transport office.</div></div>`;
 }
 
 function bookingView() {
@@ -229,7 +229,7 @@ function bookingView() {
     <div class="loc-fields">${raw(locField('pickup', 'Pickup', S.pickup))}${raw(locField('dropoff', 'Drop-off', S.dropoff))}</div>
     ${S.searching ? raw(searchPanel()) : raw(html`<p class="hint" style="margin:-4px 0 12px">Tap a field to search, or tap the map to drop a pin. Pins can be dragged.</p>`)}
     ${raw(feesBanner())}${raw(summary)}${raw(partyPicker())}${raw(nearby)}
-    <button class="btn btn-primary btn-block" id="request-btn" ${S.pickup && S.dropoff && !S.fees.length ? '' : 'disabled'}>
+    <button class="btn btn-primary btn-block" id="request-btn" ${S.pickup && S.dropoff ? '' : 'disabled'}>
       Request rickshaw · ${total}</button>
     <p class="small muted" style="text-align:center;margin:10px 0 0">Fare per passenger, paid in cash to the driver.</p>`;
 }
@@ -328,7 +328,7 @@ function finishedView(r) {
   return html`
     <div class="status-head"><h2>${r.status === 'NO_DRIVER_AVAILABLE' ? 'No rickshaw available' : 'Ride cancelled'}</h2>${raw(statusBadge(r.status))}</div>
     <p class="muted">${message}</p>${raw(trip(r))}
-    ${r.cancellation_fee ? raw(html`<div class="banner banner-warn small" style="margin-top:10px">Cancellation fee ${r.cancellation_fee.display}: settle it with the transport office before your next ride.</div>`) : ''}
+    ${r.cancellation_fee ? raw(html`<div class="banner banner-warn small" style="margin-top:10px">Cancellation fee ${r.cancellation_fee.display}: please pay it to the transport office.</div>`) : ''}
     <button class="btn btn-primary btn-block" style="margin-top:14px" id="retry-btn">${r.status === 'NO_DRIVER_AVAILABLE' ? 'Try again' : 'Book a new ride'}</button>
     <button class="btn btn-ghost btn-block" id="done-btn">Close</button>`;
 }
@@ -460,8 +460,6 @@ async function requestRide(button) {
       if (err.code === 'active_ride_exists') {
         const state = await api.get('/api/passenger/state');
         applyRide(state.active_ride);
-      } else if (err.code === 'fee_outstanding') {
-        S.fees = err.extra.fees || []; render(); showError(err);
       } else showError(err);
     }
   });
@@ -491,7 +489,7 @@ async function cancelRide(quote = null) {
   }
   const fee = quote?.fee;
   const body = fee
-    ? html`<strong>Cancelling now costs ${fee.display}.</strong> ${quote.reason} You will need to settle the fee with the transport office before your next ride.`
+    ? html`<strong>Cancelling now costs ${fee.display}.</strong> ${quote.reason} You will need to pay it to the transport office.`
     : r.driver ? html`Free cancellation. ${quote?.reason || ''}` : 'We will stop looking for a driver.';
   const reason = await modal({
     title: 'Cancel this ride?', body,
