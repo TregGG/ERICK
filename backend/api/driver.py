@@ -26,6 +26,8 @@ VEHICLE_RE = re.compile(r"^[A-Z]{2}[ -]?\d{1,2}[ -]?[A-Z]{0,3}[ -]?\d{1,4}$")
 class ProfileIn(BaseModel):
     name: str = Field(min_length=2, max_length=80)
     vehicle_number: str = Field(min_length=4, max_length=20)
+    # Passenger seats; only rides with a party that fits are offered to this driver.
+    capacity: Optional[int] = Field(default=None, ge=1, le=ride_service.MAX_PASSENGERS)
 
 
 class OnlineIn(BaseModel):
@@ -86,9 +88,12 @@ async def update_profile(body: ProfileIn, principal: Principal = Depends(require
     principal.user.name = ride_service.clean_text(body.name, 80)
     vehicle = (await db.execute(select(Vehicle).where(Vehicle.driver_id == principal.id))).scalar_one_or_none()
     if vehicle is None:
-        db.add(Vehicle(driver_id=principal.id, registration_number=number))
+        vehicle = Vehicle(driver_id=principal.id, registration_number=number)
+        db.add(vehicle)
     else:
         vehicle.registration_number = number
+    if body.capacity is not None:
+        vehicle.capacity = body.capacity
     if await db.get(DriverProfile, principal.id) is None:
         db.add(DriverProfile(user_id=principal.id))
     try:
@@ -232,7 +237,15 @@ async def earnings(principal: Principal = Depends(require_driver), db: AsyncSess
             .select_from(Ride).outerjoin(Payment, Payment.ride_id == Ride.id).where(and_(*conditions))
         )).one()
         trips, fares, collected = int(row[0]), int(row[1]), int(row[2])
+        fee_conditions = [Ride.driver_id == principal.id, Payment.kind == "cancellation_fee", Payment.status == "PAID"]
+        if since is not None:
+            fee_conditions.append(Ride.cancelled_at >= since)
+        fees = int((await db.execute(
+            select(func.coalesce(func.sum(Payment.amount_paise), 0)).select_from(Payment)
+            .join(Ride, Ride.id == Payment.ride_id).where(and_(*fee_conditions))
+        )).scalar_one())
         return {"trips": trips, "fares_paise": fares, "cash_collected_paise": collected,
+                "cancellation_fees_paise": fees,
                 "driver_share_paise": fares * ops.driver_share_percent // 100,
                 "display": ride_service.rupees(fares * ops.driver_share_percent // 100)}
 

@@ -1,8 +1,9 @@
 """Dispatch: offer each searching ride to one eligible driver at a time.
 
 Eligible driver = online, approved (when verification is required), account
-active, vehicle registered, a fresh in-campus location, no assigned ride, no
-other pending offer, and never offered this ride before (so a rejection or
+active, vehicle registered with enough seats for the party, a fresh in-campus
+location, no assigned ride, no other pending offer, and never offered this ride
+before (so a rejection or
 timeout moves on to the next candidate). Candidates are ranked by distance to
 the pickup; PostGIS performs the radius search on PostgreSQL.
 
@@ -43,7 +44,8 @@ class Candidate:
 
 
 async def eligible_drivers(db: AsyncSession, lat: float, lng: float, ops: OpsSettings,
-                           exclude_ride_id: Optional[uuid.UUID] = None, limit: int = 20) -> List[Candidate]:
+                           exclude_ride_id: Optional[uuid.UUID] = None, limit: int = 20,
+                           min_capacity: int = 1) -> List[Candidate]:
     now = utcnow()
     fresh_after = now - timedelta(seconds=ops.location_stale_s)
     conditions = [
@@ -56,6 +58,8 @@ async def eligible_drivers(db: AsyncSession, lat: float, lng: float, ops: OpsSet
     ]
     if ops.require_driver_verification:
         conditions.append(DriverProfile.verification_status == "approved")
+    if min_capacity > 1:
+        conditions.append(Vehicle.capacity >= min_capacity)
     if exclude_ride_id is not None:
         conditions.append(~exists().where(and_(RideOffer.driver_id == DriverProfile.user_id, RideOffer.ride_id == exclude_ride_id)))
 
@@ -92,7 +96,8 @@ async def _offer_to_next(db: AsyncSession, ride: Ride, ops: OpsSettings) -> str:
         await commit_and_publish(db)
         return "no_driver"
 
-    candidates = await eligible_drivers(db, ride.pickup_lat, ride.pickup_lng, ops, exclude_ride_id=ride.id, limit=5)
+    candidates = await eligible_drivers(db, ride.pickup_lat, ride.pickup_lng, ops, exclude_ride_id=ride.id, limit=5,
+                                        min_capacity=ride.passenger_count)
     for candidate in candidates:
         offer = RideOffer(id=uuid.uuid4(), ride_id=ride.id, driver_id=candidate.driver_id,
                           status=OfferStatus.PENDING.value, distance_to_pickup_m=int(candidate.distance_m),

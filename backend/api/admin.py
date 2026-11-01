@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_db, utcnow
 from ..models import (
-    AuditLog, CampusZone, DriverLocation, DriverProfile, Landmark, Rating, Ride, RideOffer, User, Vehicle,
+    AuditLog, CampusZone, DriverLocation, DriverProfile, Landmark, Payment, Rating, Ride, RideOffer, User, Vehicle,
 )
 from ..realtime import commit_and_publish, queue_event
 from ..security import Principal, client_ip, require_admin
@@ -40,6 +40,11 @@ class UserStatusIn(BaseModel):
 
 class CancelIn(BaseModel):
     reason: str = Field(min_length=3, max_length=200)
+
+
+class FeeSettleIn(BaseModel):
+    status: Literal["PAID", "WAIVED"]
+    note: Optional[str] = Field(default=None, max_length=200)
 
 
 class LandmarkIn(BaseModel):
@@ -222,6 +227,47 @@ async def cancel_ride(ride_id: str, body: CancelIn, request: Request,
     audit(db, admin.user, "ride.cancel", "ride", ride.id, {"reason": body.reason}, client_ip(request))
     await commit_and_publish(db)
     return await ride_service.ride_view(db, ride, "admin")
+
+
+@router.get("/fees")
+async def fees(status: Literal["PENDING", "PAID", "WAIVED"] = "PENDING", limit: int = Query(100, ge=1, le=500),
+               admin: Principal = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    rows = (await db.execute(
+        select(Payment, Ride, User).join(Ride, Ride.id == Payment.ride_id).join(User, User.id == Ride.passenger_id)
+        .where(Payment.kind == "cancellation_fee", Payment.status == status)
+        .order_by(Payment.created_at.desc()).limit(limit)
+    )).all()
+    drivers = {u.id: u for u in (await db.execute(
+        select(User).where(User.id.in_({r.driver_id for _, r, _ in rows if r.driver_id})))).scalars()}
+    return [{
+        "payment_id": str(pay.id), "ride_id": str(ride.id), "status": pay.status,
+        "amount": ride_service.money(pay.amount_paise),
+        "passenger": {"name": passenger.name, "phone": passenger.phone},
+        "driver": drivers[ride.driver_id].name if ride.driver_id in drivers else None,
+        "pickup": ride.pickup_name, "cancelled_at": ride_service.iso(ride.cancelled_at),
+        "updated_at": ride_service.iso(pay.updated_at),
+    } for pay, ride, passenger in rows]
+
+
+@router.post("/fees/{payment_id}")
+async def settle_fee(payment_id: uuid.UUID, body: FeeSettleIn, request: Request,
+                     admin: Principal = Depends(require_admin), db: AsyncSession = Depends(get_db)):
+    payment = await db.get(Payment, payment_id)
+    if payment is None or payment.kind != "cancellation_fee":
+        raise ride_service.ServiceError(404, "Fee not found", code="not_found")
+    if payment.status != "PENDING":
+        raise ride_service.ServiceError(409, f"This fee is already {payment.status.lower()}.", code="already_settled")
+    payment.status = body.status
+    payment.collected_by = admin.id if body.status == "PAID" else None
+    ride = await db.get(Ride, payment.ride_id)
+    audit(db, admin.user, "fee.settle", "payment", payment.id,
+          {"ride_id": str(payment.ride_id), "amount_paise": payment.amount_paise, "status": body.status, "note": body.note},
+          client_ip(request))
+    ride_service.notify(db, ride.passenger_id, "fee_settled",
+                        f"Cancellation fee {'paid' if body.status == 'PAID' else 'waived'}",
+                        "You can book rides again.", ride.id)
+    await commit_and_publish(db)
+    return {"payment_id": str(payment.id), "status": payment.status}
 
 
 @router.get("/settings")

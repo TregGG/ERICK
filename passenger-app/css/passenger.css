@@ -44,3 +44,7 @@
 .stars button.on { color: #f5a623; }
 .route-stops { display: grid; gap: 6px; font-size: 14px; margin: 10px 0; }
 .route-stops div { display: flex; gap: 10px; align-items: center; }
+.party { display: grid; gap: 8px; margin-bottom: 12px; }
+.stepper { display: flex; align-items: center; gap: 12px; }
+.stepper .num { min-width: 1.5ch; text-align: center; font-size: 18px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }

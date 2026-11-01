@@ -29,10 +29,18 @@ class PlaceIn(BaseModel):
 class RideIn(BaseModel):
     pickup: PlaceIn
     dropoff: PlaceIn
+    passenger_count: int = Field(default=1, ge=1, le=ride_service.MAX_PASSENGERS)
+    boost_paise: int = Field(default=0, ge=0)
+
+
+class BoostIn(BaseModel):
+    boost_paise: int = Field(gt=0)
 
 
 class CancelIn(BaseModel):
     reason: Optional[str] = Field(default=None, max_length=200)
+    # The fee the passenger saw and agreed to; a higher fee at cancel time is refused, never charged silently.
+    accepted_fee_paise: int = Field(default=0, ge=0)
 
 
 class SavedPlaceIn(PlaceIn):
@@ -51,6 +59,7 @@ async def passenger_state(db: AsyncSession, principal: Principal) -> dict:
         Notification.user_id == principal.id, Notification.read_at.is_(None)))).scalar_one()
     return {
         "active_ride": await ride_service.ride_view(db, ride, "passenger", principal.id) if ride else None,
+        "outstanding_fees": await ride_service.outstanding_fees(db, principal.id),
         "unread_notifications": unread,
         "server_time": utcnow().isoformat(),
     }
@@ -63,7 +72,7 @@ async def request_ride(body: RideIn, response: Response,
     rate_limiter.check("ride_request", str(principal.id), limit=10, window_s=300)
     ride, created = await ride_service.create_ride(
         db, principal.user, body.pickup.model_dump(), body.dropoff.model_dump(),
-        idempotency_key, settings.GEOFENCE_BUFFER_METERS,
+        idempotency_key, settings.GEOFENCE_BUFFER_METERS, body.passenger_count, body.boost_paise,
     )
     await commit_and_publish(db)
     if created:
@@ -105,8 +114,27 @@ async def cancel(ride_id: str, body: CancelIn, principal: Principal = Depends(re
     ride = await _own_ride(db, ride_id, principal)
     if ride.status == "CANCELLED":
         return await ride_service.ride_view(db, ride, "passenger", principal.id)  # idempotent repeat
-    await ride_service.cancel_ride(db, ride, principal.user, body.reason)
+    await ride_service.cancel_ride(db, ride, principal.user, body.reason, body.accepted_fee_paise)
     await commit_and_publish(db)
+    return await ride_service.ride_view(db, ride, "passenger", principal.id)
+
+
+@router.get("/rides/{ride_id}/cancel-quote")
+async def cancel_quote(ride_id: str, principal: Principal = Depends(require_passenger), db: AsyncSession = Depends(get_db)):
+    ride = await _own_ride(db, ride_id, principal)
+    return await ride_service.cancellation_quote(db, ride)
+
+
+@router.post("/rides/{ride_id}/boost")
+async def boost(ride_id: str, body: BoostIn, principal: Principal = Depends(require_passenger),
+                db: AsyncSession = Depends(get_db)):
+    rate_limiter.check("ride_boost", str(principal.id), limit=10, window_s=300)
+    ride = await _own_ride(db, ride_id, principal)
+    await ride_service.boost_ride(db, ride, body.boost_paise)
+    await commit_and_publish(db)
+    if ride.status == "REQUESTED":
+        await dispatch.dispatch_ride(ride.id)
+        await db.refresh(ride)
     return await ride_service.ride_view(db, ride, "passenger", principal.id)
 
 

@@ -81,6 +81,8 @@ async def record(db: AsyncSession, driver: User, report: LocationReport) -> dict
     current.recorded_at, current.received_at = report.timestamp, now
 
     if active is not None:
+        if ride_service.RideStatus(active.status) in ride_service.APPROACHING:
+            await ride_service.record_approach(db, active, report.lat, report.lng, report.accuracy_m)
         queue_event(db, active.passenger_id, "driver.location", {"ride_id": str(active.id), **ride_service.location_view(current)})
 
     ack = {"accepted": True, "inside_campus": inside, "received_at": now.isoformat()}

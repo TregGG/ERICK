@@ -45,14 +45,29 @@ EXPIRED | CANCELLED`).
 ## Dispatch
 
 1. Passenger request is validated (inside the OSM campus polygon + `GEOFENCE_BUFFER_METERS`, ≥100 m trip).
-2. Road distance/duration from OSRM (or labelled straight-line estimate); flat fare from settings.
-3. Candidates: online, approved, active account, vehicle registered, location fresher than
+2. Road distance/duration from OSRM (or labelled straight-line estimate); fare = (base fare per passenger + optional boost) × passenger count; the base comes from settings.
+3. Candidates: online, approved, active account, vehicle registered with seats for the whole party, location fresher than
    `location_stale_s` and inside campus, no assigned ride, no pending offer, never offered this ride.
    PostGIS `ST_DWithin` on a generated `geography` column with a GiST index; ordered by distance.
 4. The nearest candidate gets a time-limited offer (`offer_timeout_s`). Reject/expiry moves to the next.
 5. Acceptance claims the offer and assigns the ride in one transaction.
 6. The dispatch loop (1 s tick) expires offers, retries searching rides as drivers come online, and ends
    searches at `search_timeout_s` / `max_offers_per_ride` with `NO_DRIVER_AVAILABLE`.
+
+A searching passenger can raise the per-passenger boost (`max_boost_paise`, at most `max_boosts_per_ride`
+times). A boost restarts the search window and makes drivers who declined or let the offer expire eligible again.
+
+## Cancellation fee
+
+While a driver is assigned (ACCEPTED/ARRIVED), every location report stores the driver's distance to the
+pickup in `ride_approach_samples` (distance only, no coordinates; pruned after 2 min, deleted when the
+driver stops heading to the pickup). A passenger cancellation is free unless the driver got more than
+`approach_min_m` closer over the last `cancel_window_s`; a stationary driver, one moving away, or one that
+stopped reporting can't be shown to be approaching. The fee is `cancel_fee_percent` of the fare, at least
+`cancel_fee_min_paise`, capped at the fare. The client must send the fee it showed (`accepted_fee_paise`);
+a higher fee is refused with `fee_changed`, never charged silently. The fee is a PENDING
+`payments` row (`kind = 'cancellation_fee'`), and the passenger can't book again until an admin marks it
+PAID (credited to that driver's earnings) or WAIVED. Admin cancellations are always free.
 
 Ranking uses straight-line distance to the pickup (cheap and adequate at campus scale). Ranking by
 road ETA would need an OSRM *table* call per dispatch and a self-hosted OSRM.
